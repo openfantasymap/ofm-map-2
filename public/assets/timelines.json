@@ -1,0 +1,40 @@
+[{
+    "size": 3,
+    "name": "Toril",
+    "url": "/toril",
+    "date": 1302,
+    "base": {
+        "zoom": 8,
+        "lat": 33.13800495612396,
+        "lng": -78.56616148434969
+    },
+    "copyright": "The property of all the concepts in Toril is of Wizards of the Coast",
+    "description": "Toril is Wizards of the Coast's own main world for Forgotten Realms and Faerun setting "
+  },
+  {
+    "size": 4,
+    "name": "Golarion",
+    "url": "/golarion",
+    "date": 3400,
+    "base": {
+        "zoom": 13,
+        "lat": 0,
+        "lng": 0
+    },
+    "copyright": "The property of all the concepts in Golarion is property of Paizo Inc.",
+    "description": "Golarion is Paizo's own world, home to the Pathfinder setting"
+  },
+  {
+    "size": 2,
+    "name": "Barovia",
+    "url": "/barovia",
+    "date": 1436,
+    "base": {
+        "zoom": 11,
+        "lat": 43.83288607635591,
+        "lng": 12.946321457414086
+    },
+    "copyright": "The property of all the concepts in Barovia is of Wizards of the Coast",
+    "description": "Barovia is one of the Dread Realms of Wizard's Forgotten Realms"
+  }
+]

@@ -1,0 +1,81 @@
+<mat-toolbar color="secondary">
+    <button mat-icon-button (click)="lbar.toggle()"><mat-icon>map</mat-icon></button>
+    <h1>OpenFantasyMap - {{title}}</h1>
+    <span class="spacer"></span>
+    <a href="https://www.patreon.com/openfantasymap" target="_blank" title="Help us keep this project alive" mat-icon-button ><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png" style="width:36px; left:-6px; top: -6px; position: relative;"></mat-icon></a>
+    <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" title="Use this and other OFM maps on FoundryVTT" mat-icon-button ><mat-icon><img src="/assets/images/fvtt-solid-512.png" style="width:36px; left:-6px; top: -6px; position: relative;"></mat-icon></a>
+    <button mat-icon-button (click)="copy_url()" class="hidesmall"><mat-icon>share</mat-icon></button>
+    <!--<button mat-icon-button (click)="rbar.toggle()" class="hidesmall"><mat-icon>menu</mat-icon></button>-->
+
+</mat-toolbar>
+
+<mat-sidenav-container class="example-container">
+    <mat-sidenav class="sidebar" mode="over" #lbar position="start">
+        <div *ngIf="infoData" class="info" [innerHtml]="infoData?.info"></div>
+        
+        <mat-nav-list>
+            <a mat-list-item href="..">All fantasy worlds</a>
+            <div *ngIf="ofm_meta">
+                <div *ngIf="ofm_meta.type === 'starbase'">
+                    <div mat-subheader>Decks</div>
+                    <mat-list>
+                        <mat-list-item *ngFor="let o of ofm_meta.decks|deck" (click)="setDeck(o.key)">
+                            {{o.value.name}}
+                        </mat-list-item>
+                    </mat-list>
+                </div>
+                <div mat-subheader>Sources</div>
+                <mat-list-item *ngFor="let r of ofm_meta.sources">
+                    <a matListItemLine target="_blank" href="{{r.url}}">{{r.label}}</a>
+                    <div matListItemLine>{{r.attribution}}</div>
+                </mat-list-item>
+                <h1 mat-subheader>Related Maps</h1>
+                <a *ngFor="let r of ofm_meta.relateds" mat-list-item href="{{r.url}}">{{r.title}}</a>
+            </div>
+        </mat-nav-list>
+    </mat-sidenav>
+    <!--<mat-sidenav class="sidebar" mode="over" #rbar position="end">
+        <mat-toolbar color="primary">
+            <h1>Events</h1>
+        </mat-toolbar>
+
+        <mat-list *ngFor="let event of (events|async)">
+            <a mat-list-item (click)="goTimeSpace(event.ohm_from, event.geom)">{{event.properties.name}}</a>
+        </mat-list>
+    </mat-sidenav>-->
+    <mat-sidenav class="sidebar" mode="over" #sharebar position="end">
+        <mat-toolbar color="primary">
+            <h1>Sharing</h1>
+            <span class="spacer"></span>
+            <button mat-icon-button (click)="sharebar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
+        </mat-toolbar>
+
+        <mat-list>
+            <a mat-list-item href="https://profile.fantasymaps.org/?use={{share_link}}"><mat-icon><img src="/assets/images/fvtt-solid-512.png" style="width:36px; left:-6px; top: -6px; position: relative;"></mat-icon>Use on FoundryVTT</a>
+            <a share="https://www.facebook.com/sharer/sharer.php?u={{share_link}}" mat-list-item><mat-icon>facebook</mat-icon> Share on Facebook</a>
+            <a share="" mat-list-item><mat-icon>twitter</mat-icon> Share on Twitter</a>
+        </mat-list>
+
+    </mat-sidenav>
+    <mat-sidenav-content #screen>
+        <mat-menu #menu="matMenu">
+            <!--
+            <button mat-menu-item (click)="setSpeed(4000)">Slow</button>
+            <button mat-menu-item (click)="setSpeed(2000)">Medium</button>
+            <button mat-menu-item (click)="setSpeed(500)">High</button>
+        -->
+        </mat-menu>
+        <div class="row">
+            <div id="ohm_map"></div>
+            <div *ngIf="ofm_meta" id="ofm_attribution" [innerHTML]="ofm_meta.copyright"></div>
+        </div>
+        
+        <div id="timebar">
+            <button mat-button class="hidesmall" (click)="selectDate()">{{atDate|decimaldate|date:'d/M/y G - hh:mm:ss'|nicedate}}</button>
+            <button class="hidesmall" mat-icon-button (click)="startstop()"><mat-icon>{{startstopicon}}</mat-icon></button>
+            <button class="hidesmall" mat-icon-button [matMenuTriggerFor]="menu"><mat-icon>speed</mat-icon></button>
+        </div>
+        <div id="visualization"></div>
+    </mat-sidenav-content>
+</mat-sidenav-container>
+<div></div>

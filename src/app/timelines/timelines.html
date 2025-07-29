@@ -1,0 +1,35 @@
+<mat-toolbar color="secondary">
+    <button #stgl mat-icon-button (click)="lbar.toggle()"><mat-icon>info</mat-icon></button>
+    <h1>OpenFantasyMap</h1>
+    <span class="spacer"></span>
+
+    <button mat-icon-button (click)="disabled()" class="hidesmall"><mat-icon>person</mat-icon></button>
+
+</mat-toolbar>
+
+<mat-sidenav-container>
+    <mat-sidenav class="sidebar" mode="over" #lbar>
+        <div class="info">
+            OpenFantasyMap and FantasyMaps are a projects developed by OpenHistoryMap to create a non conventional use case for Digital Humanities and Public History.
+        </div>
+        <mat-nav-list>
+            <a mat-list-item href="https://www.fantasymaps.org">More info</a>
+        </mat-nav-list>
+    </mat-sidenav>
+    <mat-sidenav-content>
+        <div class="col">
+        <mat-chip-listbox [multiple]="true" [selectable]="true" >
+            <mat-chip [highlighted]="t.selected" *ngFor="let t of tags" (click)="filter($event,t.label)">{{t.label}}</mat-chip>   
+        </mat-chip-listbox>
+    
+        <div class="row">
+            <div id="ohm_timelines">
+                <mat-grid-list cols="16" rowHeight="1:1">
+                    <mat-grid-tile target="_blank" *ngFor="let tl of seen_timelines" [style.background]="tl.bg" [style.color]="tl.color" [style.background-image]="tl.bgimg" [colspan]="tl.size" [rowspan]="tl.size" [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng]">{{tl.name}}</mat-grid-tile>
+                </mat-grid-list>
+            </div>
+        </div>
+        </div>
+    </mat-sidenav-content>
+</mat-sidenav-container>
+<div></div>
