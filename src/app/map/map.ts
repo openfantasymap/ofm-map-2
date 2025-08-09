@@ -1,4 +1,4 @@
-import { AfterContentInit, ChangeDetectionStrategy, Component, Input, isDevMode, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
+import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, isDevMode, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {MatSidenav, MatSidenavModule} from '@angular/material/sidenav';
 import {MatDialog, MatDialogModule} from '@angular/material/dialog';
@@ -25,7 +25,8 @@ declare const vis: any;
 declare const turf: any;
 
 @Pipe({
-  name: 'deck'
+  name: 'deck',
+  standalone: true,
 })
 
 export class DeckPipe implements PipeTransform{
@@ -150,7 +151,8 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
     private http: HttpClient,
     private _snackBar: MatSnackBar,
     private clipboard: Clipboard,
-    private capture: NgxCaptureService
+    private capture: NgxCaptureService,
+    private cdr: ChangeDetectorRef
   ) {
     this.startstopicons.set('stop', 'play_arrow');
     this.startstopicons.set('play', 'stop');
@@ -313,6 +315,7 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
       for (let l of this.ofm_meta.togglable) {
         this.layers[l.name] = true;
       }
+      this.cdr.markForCheck();
     });
 
     const container = document.getElementById('visualization');

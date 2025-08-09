@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatIconModule } from '@angular/material/icon';
@@ -33,7 +33,8 @@ selected_tags!: string[];
 
   constructor(
     private ofm: OfmService,
-    private ht: HttpClient
+    private ht: HttpClient,
+    private cdr: ChangeDetectorRef
   ) { 
   }
 
@@ -46,10 +47,12 @@ selected_tags!: string[];
   ngOnInit(): void {
     this.ht.get('assets/info.json').subscribe((data:any) => {
       this.infoData = data;
+      this.cdr.markForCheck();
     })
     this.ofm.getTimelines().subscribe((data:any) => {
       this.timelines = data;
       this.seen_timelines = data;
+      this.cdr.markForCheck();
     })
 
     this.ofm.getTags().subscribe((data:any)=>{

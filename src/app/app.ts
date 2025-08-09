@@ -17,6 +17,7 @@ export class ActiveRoute {
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
+  standalone: true,
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,7 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
-  name: 'decimaldate'
+  name: 'decimaldate',
+  standalone: true,
 })
 export class DecimaldatePipe implements PipeTransform {
 

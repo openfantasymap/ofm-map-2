@@ -2,6 +2,7 @@ import { Directive, Input } from '@angular/core';
 
 @Directive({
   selector: '[share]',
+  standalone: true,
   host: {
     "(click)": "onClick($event)"
  }

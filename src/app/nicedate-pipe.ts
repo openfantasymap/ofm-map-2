@@ -1,7 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
-  name: 'nicedate'
+  name: 'nicedate',
+  standalone: true,
 })
 export class NicedatePipe implements PipeTransform {
 
