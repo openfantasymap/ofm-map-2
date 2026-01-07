@@ -1,9 +1,32 @@
 <h2 mat-dialog-title>Gaia Response</h2>
 <mat-dialog-content>
-  <p>
+  <mat-accordion>
+  <mat-expansion-panel expanded="true">
+    <mat-expansion-panel-header>
+      <mat-panel-title> The description of the world </mat-panel-title>
+    </mat-expansion-panel-header>
+    <p>
     {{data.description}}
-  </p>
-  <img src="{{data.image}}" />
+    </p>
+  </mat-expansion-panel>
+  <mat-expansion-panel >
+    <mat-expansion-panel-header>
+      <mat-panel-title> The image prompt </mat-panel-title>
+    </mat-expansion-panel-header>
+    <p>
+    {{data.image_prompt}}
+    </p>
+  </mat-expansion-panel>
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title> The rendered image </mat-panel-title>
+    </mat-expansion-panel-header>
+    <img src="{{data.image}}" />
+  </mat-expansion-panel>
+</mat-accordion>
+
+
+  
 </mat-dialog-content>
 <mat-dialog-actions>
   <button matButton (click)="onNoClick()">Close</button>

@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-
+import {MatExpansionModule} from '@angular/material/expansion';
 @Component({
   selector: 'app-response',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, MatButtonModule, MatExpansionModule],
   templateUrl: './response.html',
   styleUrl: './response.scss'
 })
