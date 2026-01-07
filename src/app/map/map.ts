@@ -19,6 +19,7 @@ import { NicedatePipe } from '../nicedate-pipe';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { Response } from '../gaia/response/response';
+import { InputDialog } from '../gaia/input/input';
 
 //declare const mapboxgl;
 declare const maplibregl: any;
@@ -216,20 +217,25 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
 gaialoading = false;
 uploadCone(cone: any) {
   this.gaialoading=true;
-  let gpt = prompt('If you set the OpenAI API Key we will generate the image of the point as well');
-  if(gpt){
-    this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image='+gpt, cone, {
-      headers: { 'Content-Type': 'application/json' },
-    }).subscribe(data => {
-      this.showGaia(data);
-    })
-  } else {
-    this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image=false', cone, {
-      headers: { 'Content-Type': 'application/json' },
-    }).subscribe(data=>{
-      this.showGaia(data);
-    });
-  }
+  let gpt_key:string|null = localStorage.getItem('gaia-sora-key');;
+  let conf = this.md.open(InputDialog, {data: {key:gpt_key}, width:"400px"});
+  conf.afterClosed().subscribe(result=>{
+    console.log(result);
+    if(result){
+      localStorage.setItem('gaia-sora-key', result);
+      this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image='+result, cone, {
+        headers: { 'Content-Type': 'application/json' },
+      }).subscribe(data => {
+        this.showGaia(data);
+      })
+    } else {
+      this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image=false', cone, {
+        headers: { 'Content-Type': 'application/json' },
+      }).subscribe(data=>{
+        this.showGaia(data);
+      });
+    }
+  })
 }
 
 showGaia(data:any){

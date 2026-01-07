@@ -1,1 +1,11 @@
-<p>input works!</p>
+<h2 mat-dialog-title>Gaia Request</h2>
+<mat-dialog-content>
+    <p>The request will generate a description of the world you see from the first point you selected. If you insert the OpenAI API Key we will be able to generate the image as well. The key will be only stored locally.</p>
+  <mat-form-field class="wide">
+    <mat-label>OpenAI API KEY</mat-label>
+    <input matInput [(ngModel)]="chatgpt_key" />
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button matButton [mat-dialog-close]="chatgpt_key()" cdkFocusInitial>Ok</button>
+</mat-dialog-actions>

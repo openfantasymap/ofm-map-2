@@ -1,11 +1,24 @@
-import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, inject, model } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import {MatFormFieldModule} from '@angular/material/form-field';
+import {MatInputModule} from '@angular/material/input';
+
 
 @Component({
   selector: 'app-input',
-  imports: [],
+  imports: [MatDialogModule, MatButtonModule, CommonModule, FormsModule, MatFormFieldModule, MatInputModule],
   templateUrl: './input.html',
   styleUrl: './input.scss'
 })
-export class Input {
-
+export class InputDialog {
+  readonly dialogRef = inject(MatDialogRef<InputDialog>);
+  readonly data = inject<any>(MAT_DIALOG_DATA);
+  readonly chatgpt_key=model(this.data.key);
+  
+  onNoClick(): void {
+    this.dialogRef.close();
+  }
 }
