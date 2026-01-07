@@ -209,21 +209,9 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
   }
 
   upsertCone(map: any, data: any) {
-  
-    map.addSource(this.SOURCE_ID, {
-      type: 'geojson',
-      data
-    });
-
-    map.addLayer({
-      id: this.LAYER_ID,
-      type: 'fill',
-      source: this.SOURCE_ID,
-      paint: {
-        'fill-color': '#ff6a00',
-        'fill-opacity': 0.35
-      }
-    });
+    if (map.getSource(this.SOURCE_ID)) {
+      (map.getSource(this.SOURCE_ID)).setData(data);
+    }  
   }
 
 uploadCone(cone: any) {
@@ -414,6 +402,22 @@ drawWedge(){
       //  }});
 
       this.registerConeHandlers(this.map);
+
+      
+    this.map.addSource(this.SOURCE_ID, {
+      type: 'geojson',
+      data:{type:"FeatureCollection", features:[]}
+    });
+
+    this.map.addLayer({
+      id: this.LAYER_ID,
+      type: 'fill',
+      source: this.SOURCE_ID,
+      paint: {
+        'fill-color': '#ff6a00',
+        'fill-opacity': 0.35
+      }
+    });
 
 
       for (let layer of this.ofm_meta.clickLayers) {
