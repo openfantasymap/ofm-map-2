@@ -67,6 +67,7 @@
         </mat-menu>
         <div class="row">
             <div id="ohm_map"></div>
+            <button class="gaiawm" (click)="drawWedge()" title="GaiaWM Watcher"></button>
             <div *ngIf="ofm_meta" id="ofm_attribution" [innerHTML]="ofm_meta.copyright"></div>
         </div>
         

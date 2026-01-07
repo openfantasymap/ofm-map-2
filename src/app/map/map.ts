@@ -18,6 +18,7 @@ import { ShareDirective } from '../share';
 import { NicedatePipe } from '../nicedate-pipe';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
+import { Response } from '../gaia/response/response';
 
 //declare const mapboxgl;
 declare const maplibregl: any;
@@ -112,6 +113,188 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
   showTools = false;
   showShare = false;
 
+  /**
+   * GAIA
+   */
+  drawing = false;
+  center?: any = null;
+  radius?:number;
+  bearing?:number;
+  angle:number = 120; 
+
+  circleLayerId = 'circle-preview';
+
+  SOURCE_ID = 'gaia-cone-source';
+  LAYER_ID = 'gaia-cone-layer';
+
+ createCone(
+  center: any,
+  radius: number,
+  bearing: number,
+  angle: number,
+  steps = 48
+): any {
+  const coords: number[][] = [[center.lng, center.lat]];
+  const R = 6_371_000;
+
+  const start = bearing - angle / 2;
+  const end = bearing + angle / 2;
+
+  for (let i = 0; i <= steps; i++) {
+    const b = ((start + (i / steps) * (end - start)) * Math.PI) / 180;
+
+    const lat1 = (center.lat * Math.PI) / 180;
+    const lng1 = (center.lng * Math.PI) / 180;
+
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(radius / R) +
+      Math.cos(lat1) * Math.sin(radius / R) * Math.cos(b)
+    );
+
+    const lng2 =
+      lng1 +
+      Math.atan2(
+        Math.sin(b) * Math.sin(radius / R) * Math.cos(lat1),
+        Math.cos(radius / R) - Math.sin(lat1) * Math.sin(lat2)
+      );
+
+    coords.push([
+      (lng2 * 180) / Math.PI,
+      (lat2 * 180) / Math.PI
+    ]);
+  }
+
+  coords.push([center.lng, center.lat]);
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [coords]
+    },
+    properties: {}
+  };
+}
+
+
+  getDistanceMeters(a: any, b: any): number {
+    const R = 6_371_000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+
+    const x =
+      Math.sin(dLat / 2) ** 2 +
+      Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+    return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+
+  getBearing(a: any, b: any): number {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const toDeg = (r: number) => (r * 180) / Math.PI;
+
+    const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
+    const x =
+      Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
+      Math.sin(toRad(a.lat)) *
+        Math.cos(toRad(b.lat)) *
+        Math.cos(toRad(b.lng - a.lng));
+
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }
+
+  upsertCone(map: any, data: any) {
+  
+    map.addSource(this.SOURCE_ID, {
+      type: 'geojson',
+      data
+    });
+
+    map.addLayer({
+      id: this.LAYER_ID,
+      type: 'fill',
+      source: this.SOURCE_ID,
+      paint: {
+        'fill-color': '#ff6a00',
+        'fill-opacity': 0.35
+      }
+    });
+  }
+
+uploadCone(cone: any) {
+  let gpt = prompt('If you set the OpenAI API Key we will generate the image of the point as well');
+  if(gpt){
+    this.http.post('https://api.gaia.fantasymaps.org/toril/context?describe=only&image='+gpt, cone, {
+      headers: { 'Content-Type': 'application/json' },
+    }).subscribe(data => {
+      this.showGaia(data);
+    })
+  } else {
+    this.http.post('https://api.gaia.fantasymaps.org/toril/context?describe=only&image=false', cone, {
+      headers: { 'Content-Type': 'application/json' },
+    }).subscribe(data=>{
+      this.showGaia(data);
+    });
+  }
+}
+
+showGaia(data:any){
+  this.md.open(Response, {data: data});
+}
+
+cleanup(map: any) {
+  this.drawing = false;
+  this.center = null;
+  map.getCanvas().style.cursor = '';
+
+  if (map.getLayer(this.LAYER_ID)) {
+    map.removeLayer(this.LAYER_ID);
+    map.removeSource(this.SOURCE_ID);
+  }
+}
+
+registerConeHandlers(map: any) {
+  map.on('click', (e:any) => {
+    if (!this.drawing) return;
+
+    if (!this.center) {
+      this.center = e.lngLat;
+      return;
+    }
+
+    // finalize
+    this.uploadCone({
+      x: this.center.lng,
+      y: this.center.lat,
+      radius: this.radius,
+      bearing: this.bearing,
+      fov: this.angle
+    });
+
+    this.cleanup(map);
+  });
+
+  map.on('mousemove', (e:any) => {
+    if (!this.drawing || !this.center) return;
+
+    this.bearing = this.getBearing(this.center, e.lngLat);
+    this.radius = this.getDistanceMeters(this.center, e.lngLat);
+
+    const cone = this.createCone(this.center, this.radius, this.bearing, this.angle);
+    this.upsertCone(map, cone);
+  });
+}
+
+drawWedge(){
+  this.drawing=true;
+  this.center=null;
+  this.map.getCanvas().style.cursor = 'crosshair';
+}
 
   hideAll() {
     this.showInfo = false;
@@ -140,7 +323,8 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
       'type': 'LineString',
       'coordinates': []
     }
-  };
+  }
+
 
   constructor(
     private ar: ActivatedRoute,
@@ -228,6 +412,8 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
       //  'sky-atmosphere-sun': [0.0, 0.0],
       //  'sky-atmosphere-sun-intensity': 15
       //  }});
+
+      this.registerConeHandlers(this.map);
 
 
       for (let layer of this.ofm_meta.clickLayers) {

@@ -58,3 +58,16 @@
 mat-sidenav-container{
     height: calc(100vh - 84px);
 }
+
+.gaiawm{
+    position:absolute;
+    top: 20px;
+    right: 20px;
+    width: 71px;
+    height: 48px;
+    background-size: contain;
+    background-image: url(/assets/images/gaia_eye2.png);
+    background-color: transparent;
+    border: 0;
+    
+}
