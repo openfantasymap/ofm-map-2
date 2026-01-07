@@ -213,8 +213,9 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
       (map.getSource(this.SOURCE_ID)).setData(data);
     }  
   }
-
+gaialoading = false;
 uploadCone(cone: any) {
+  this.gaialoading=true;
   let gpt = prompt('If you set the OpenAI API Key we will generate the image of the point as well');
   if(gpt){
     this.http.post('https://api.gaia.fantasymaps.org/toril/context?describe=only&image='+gpt, cone, {
@@ -233,6 +234,7 @@ uploadCone(cone: any) {
 
 showGaia(data:any){
   this.md.open(Response, {data: data});
+  this.gaialoading=false;
 }
 
 cleanup(map: any) {
