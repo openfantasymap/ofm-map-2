@@ -218,13 +218,13 @@ uploadCone(cone: any) {
   this.gaialoading=true;
   let gpt = prompt('If you set the OpenAI API Key we will generate the image of the point as well');
   if(gpt){
-    this.http.post('https://api.gaia.fantasymaps.org/toril/context?describe=only&image='+gpt, cone, {
+    this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image='+gpt, cone, {
       headers: { 'Content-Type': 'application/json' },
     }).subscribe(data => {
       this.showGaia(data);
     })
   } else {
-    this.http.post('https://api.gaia.fantasymaps.org/toril/context?describe=only&image=false', cone, {
+    this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image=false', cone, {
       headers: { 'Content-Type': 'application/json' },
     }).subscribe(data=>{
       this.showGaia(data);
