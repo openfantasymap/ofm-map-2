@@ -239,11 +239,7 @@ cleanup(map: any) {
   this.drawing = false;
   this.center = null;
   map.getCanvas().style.cursor = '';
-
-  if (map.getLayer(this.LAYER_ID)) {
-    map.removeLayer(this.LAYER_ID);
-    map.removeSource(this.SOURCE_ID);
-  }
+this.upsertCone(map, {type:"FeatureCollection", features:[]})
 }
 
 registerConeHandlers(map: any) {
