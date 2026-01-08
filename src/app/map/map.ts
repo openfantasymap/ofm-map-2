@@ -286,6 +286,8 @@ drawWedge(){
   this.drawing=true;
   this.center=null;
   this.map.getCanvas().style.cursor = 'crosshair';
+  
+  this.map.getLayer(this.LAYER_ID).bringToFront();
 }
 
   hideAll() {
@@ -422,6 +424,7 @@ drawWedge(){
         'fill-opacity': 0.35
       }
     });
+
 
 
       for (let layer of this.ofm_meta.clickLayers) {
