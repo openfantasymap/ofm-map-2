@@ -4,8 +4,13 @@
     <span class="spacer"></span>
     <a href="https://www.patreon.com/openfantasymap" target="_blank" title="Help us keep this project alive" mat-icon-button ><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png"></mat-icon></a>
     <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" title="Use this and other OFM maps on FoundryVTT" mat-icon-button ><mat-icon><img src="/assets/images/fvtt-solid-512.png"></mat-icon></a>
-    <button mat-icon-button (click)="copy_url()" class="hidesmall"><mat-icon>share</mat-icon></button>
-    <!--<button mat-icon-button (click)="rbar.toggle()" class="hidesmall"><mat-icon>menu</mat-icon></button>-->
+    <!--<button mat-icon-button (click)="copy_url()" class="hidesmall"><mat-icon>share</mat-icon></button>-->
+    <button mat-icon-button (click)="ractive.set('share'); rbar.toggle()" class="hidesmall"><mat-icon>share</mat-icon></button>
+    <button mat-button (click)="ractive.set('gaia'); rbar.toggle()" class="hidesmall" class="gaiabar">
+        @if (gaialoading() === true){
+        <mat-progress-spinner mode="indeterminate" diameter="50" />
+        }
+    </button>
 
 </mat-toolbar>
 
@@ -34,16 +39,35 @@
             </div>
         </mat-nav-list>
     </mat-sidenav>
-    <!--<mat-sidenav class="sidebar" mode="over" #rbar position="end">
+    <mat-sidenav class="sidebar" mode="over" #rbar position="end">
+        @if(ractive() === 'gaia'){
         <mat-toolbar color="primary">
-            <h1>Events</h1>
+            <h1>GaiaWM Context</h1>
+            <span class="spacer"></span>
+            <button mat-icon-button (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
         </mat-toolbar>
+        <mat-accordion>
+            <mat-expansion-panel>
+                <mat-expansion-panel-header>
+                    <mat-panel-title>Settings</mat-panel-title>
+                </mat-expansion-panel-header>
+                <!--<mat-slide-toggle>Disable Gaia</mat-slide-toggle>-->
+                <mat-slide-toggle (toggleChange)="toggleGaiaLayers()">Show on Map</mat-slide-toggle>
+            </mat-expansion-panel>
+        </mat-accordion>
 
-        <mat-list *ngFor="let event of (events|async)">
-            <a mat-list-item (click)="goTimeSpace(event.ohm_from, event.geom)">{{event.properties.name}}</a>
-        </mat-list>
-    </mat-sidenav>-->
-    <mat-sidenav class="sidebar" mode="over" #sharebar position="end">
+        <div>
+            @for(i of gaialist();track i.id){
+                <div class="row">
+                    <button mat-icon-button (click)="showGaia(i.properties)"><mat-icon>article</mat-icon></button>
+                    <span>{{i.properties.description.substring(0,20)}}</span>
+                    <div class="spacer"></div>
+                    <button mat-icon-button><mat-icon>location_on</mat-icon></button>
+                </div>
+            }
+        </div>
+    } 
+    @if(ractive() === 'share'){
         <mat-toolbar color="primary">
             <h1>Sharing</h1>
             <span class="spacer"></span>
@@ -54,8 +78,19 @@
             <a mat-list-item href="https://profile.fantasymaps.org/?use={{share_link}}"><mat-icon><img src="/assets/images/fvtt-solid-512.png" style="width:36px; left:-6px; top: -6px; position: relative;"></mat-icon>Use on FoundryVTT</a>
             <a share="https://www.facebook.com/sharer/sharer.php?u={{share_link}}" mat-list-item><mat-icon>facebook</mat-icon> Share on Facebook</a>
             <a share="" mat-list-item><mat-icon>twitter</mat-icon> Share on Twitter</a>
+            <a share="https://static.fantasymaps.org/mcp/mcp" mat-list-item><mat-icon>mcp</mat-icon></a>
         </mat-list>
+    }
+    @if(ractive() === 'events'){
 
+        <mat-toolbar color="primary">
+            <h1>Events</h1>
+        </mat-toolbar>
+
+        <mat-list *ngFor="let event of (events|async)">
+            <a mat-list-item (click)="goTimeSpace(event.ohm_from, event.geom)">{{event.properties.name}}</a>
+        </mat-list>
+    }
     </mat-sidenav>
     <mat-sidenav-content #screen>
         <mat-menu #menu="matMenu">
@@ -67,7 +102,7 @@
         </mat-menu>
         <div class="row">
             <div id="ohm_map"></div>
-            <button class="gaiawm" [disabled]="gaialoading" (click)="drawWedge()" title="GaiaWM Watcher"></button>
+            <button class="gaiawm" (click)="drawWedge()" title="GaiaWM Watcher"></button>
             <div *ngIf="ofm_meta" id="ofm_attribution" [innerHTML]="ofm_meta.copyright"></div>
         </div>
         

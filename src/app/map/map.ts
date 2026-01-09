@@ -1,4 +1,4 @@
-import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, isDevMode, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, ViewChild } from '@angular/core';
+import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, isDevMode, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {MatSidenav, MatSidenavModule} from '@angular/material/sidenav';
 import {MatDialog, MatDialogModule} from '@angular/material/dialog';
@@ -20,7 +20,10 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { Response } from '../gaia/response/response';
 import { InputDialog } from '../gaia/input/input';
-
+import { GaiaStorage } from '../gaia-storage';
+import {MatSlideToggleModule} from '@angular/material/slide-toggle';
+import {MatExpansionModule} from '@angular/material/expansion';
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 //declare const mapboxgl;
 declare const maplibregl: any;
 declare const vis: any;
@@ -53,6 +56,7 @@ export class DeckPipe implements PipeTransform{
     MatToolbarModule, CommonModule,
     MatButtonModule,
     DecimaldatePipe, DatePipe, 
+    MatSlideToggleModule,MatExpansionModule,MatProgressSpinnerModule,
     ShareDirective, NicedatePipe, DeckPipe
 
   ],
@@ -214,9 +218,9 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
       (map.getSource(this.SOURCE_ID)).setData(data);
     }  
   }
-gaialoading = false;
+gaialoading = signal(false);
 uploadCone(cone: any) {
-  this.gaialoading=true;
+  this.gaialoading.set(true);
   let gpt_key:string|null = localStorage.getItem('gaia-sora-key');;
   let conf = this.md.open(InputDialog, {data: {key:gpt_key}, width:"400px"});
   conf.afterClosed().subscribe(result=>{
@@ -225,13 +229,23 @@ uploadCone(cone: any) {
       localStorage.setItem('gaia-sora-key', result);
       this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image='+result, cone, {
         headers: { 'Content-Type': 'application/json' },
-      }).subscribe(data => {
+      }).subscribe((data:any) => {
+        this.gs.addQuery(this.ar.snapshot.params['timeline'], data.pov, data, this.createCone(data.pov, cone.radius, cone.bearing, cone.fov));
+        this.gaialist.set(this.gs.getPastQueries(this.ar.snapshot.params['timeline']));
+        this.map.getSource('gaiaStorageFovs').setData(this.gs.getFovs(this.ar.snapshot.params['timeline']));
+        this.map.getSource('gaiaStoragePovs').setData(this.gs.getMarkers(this.ar.snapshot.params['timeline']));
+
         this.showGaia(data);
       })
     } else {
       this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image=false', cone, {
         headers: { 'Content-Type': 'application/json' },
-      }).subscribe(data=>{
+      }).subscribe((data:any) => {
+        this.gs.addQuery(this.ar.snapshot.params['timeline'], data.pov, data, this.createCone(data.pov, cone.radius, cone.bearing, cone.fov));
+        this.gaialist.set(this.gs.getPastQueries(this.ar.snapshot.params['timeline']));
+        this.map.getSource('gaiaStorageFovs').setData(this.gs.getFovs(this.ar.snapshot.params['timeline']));
+        this.map.getSource('gaiaStoragePovs').setData(this.gs.getMarkers(this.ar.snapshot.params['timeline']));
+        
         this.showGaia(data);
       });
     }
@@ -240,7 +254,7 @@ uploadCone(cone: any) {
 
 showGaia(data:any){
   this.md.open(Response, {data: data});
-  this.gaialoading=false;
+  this.gaialoading.set(false);
 }
 
 cleanup(map: any) {
@@ -319,6 +333,9 @@ drawWedge(){
     }
   }
 
+  ractive = signal("");
+
+  gaialist = signal<any[]>([]);
 
   constructor(
     private ar: ActivatedRoute,
@@ -330,10 +347,12 @@ drawWedge(){
     private _snackBar: MatSnackBar,
     private clipboard: Clipboard,
     private capture: NgxCaptureService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private gs: GaiaStorage
   ) {
     this.startstopicons.set('stop', 'play_arrow');
     this.startstopicons.set('play', 'stop');
+    this.gaialist.set(gs.getPastQueries(ar.snapshot.params['timeline']));
   }
 
   ngOnDestroy(): void {
@@ -426,6 +445,42 @@ drawWedge(){
     });
 
 
+      this.map.addSource('gaiaStoragePovs', {
+        'type': 'geojson',
+        'data': this.gs.getMarkers(this.ar.snapshot.params['timeline'])
+      });
+
+      this.map.addSource('gaiaStorageFovs', {
+        'type': 'geojson',
+        'data': this.gs.getFovs(this.ar.snapshot.params['timeline'])
+      });
+
+
+      this.map.addLayer({
+        id: 'gaia_layer_povs',
+        type: 'circle',
+        source: 'gaiaStoragePovs',
+        paint: {
+          'circle-radius': 4,
+          'circle-color': 'rgba(231, 241, 28, 0.5)'
+        },
+      });
+      this.map.addLayer({
+        id: 'gaia_layer_fovs',
+        type: 'fill',
+        source: 'gaiaStorageFovs',
+        paint: {
+          'fill-color': '#fff200d9',
+          'fill-opacity': 0.35
+        }
+        
+      });
+
+      this.map.on('click', 'gaia_layer_povs', (e:any)=>{
+        this.p = e.features[0].properties;
+        this.showGaia(p);
+      })
+
 
       for (let layer of this.ofm_meta.clickLayers) {
         this.map.on('click', layer, (e:any) => {
@@ -448,6 +503,7 @@ drawWedge(){
         'type': 'geojson',
         'data': this.geojson
       });
+
 
       // Add styles to the map
       this.map.addLayer({
@@ -486,6 +542,12 @@ drawWedge(){
     });
 
   }
+showGaiaLayers = false;
+toggleGaiaLayers(){
+  this.showGaiaLayers = !this.showGaiaLayers;
+  this.map.setLayoutProperty('gaia_layer_povs', 'visibility', this.showGaiaLayers?'visible':'none')
+  this.map.setLayoutProperty('gaia_layer_fovs', 'visibility', this.showGaiaLayers?'visible':'none')
+}
 
   
   panTo(coords: { lat: number; lng: number; } | { lat: number; lon: number; } | [number, number]) {
