@@ -477,7 +477,7 @@ drawWedge(){
       });
 
       this.map.on('click', 'gaia_layer_povs', (e:any)=>{
-        this.p = e.features[0].properties;
+        const p = e.features[0].properties;
         this.showGaia(p);
       })
 
