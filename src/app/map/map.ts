@@ -444,6 +444,28 @@ drawWedge(){
       }
     });
 
+    setInterval(()=>{
+      this.gs.getAgents(this.ar.snapshot.params['timeline']).subscribe(data=>{
+        this.map.getSource('gaiaAgentsPovs').setData(data);
+      })
+    }, 5*1000);
+
+
+      this.map.addSource('gaiaAgentsPovs', {
+        'type': 'geojson',
+        'data': {type:'FeatureCollection', features:[]}
+      });
+
+
+      this.map.addLayer({
+        id: 'gaia_layer_agents_povs',
+        type: 'circle',
+        source: 'gaiaAgentsPovs',
+        paint: {
+          'circle-radius': 4,
+          'circle-color': 'rgba(186, 42, 28, 1)'
+        },
+      });
 
       this.map.addSource('gaiaStoragePovs', {
         'type': 'geojson',
@@ -547,6 +569,12 @@ toggleGaiaLayers(){
   this.showGaiaLayers = !this.showGaiaLayers;
   this.map.setLayoutProperty('gaia_layer_povs', 'visibility', this.showGaiaLayers?'visible':'none')
   this.map.setLayoutProperty('gaia_layer_fovs', 'visibility', this.showGaiaLayers?'visible':'none')
+}
+showGaiaAgentsLayer = false;
+toggleGaiaAgentsLayer(){
+  this.showGaiaAgentsLayer = !this.showGaiaAgentsLayer;
+  this.map.setLayoutProperty('gaia_layer_agents_povs', 'visibility', this.showGaiaAgentsLayer?'visible':'none')
+
 }
 
   

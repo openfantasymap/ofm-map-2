@@ -1,9 +1,12 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
 })
 export class GaiaStorage {
+  private http = inject(HttpClient);
+
   getPastQueries(world:string){
     let ret = [];
     let locals = localStorage.getItem("queries")
@@ -47,5 +50,9 @@ export class GaiaStorage {
     const ret =  {type:"FeatureCollection", features: this.getPastQueries(world).map((x:any)=>x.geometry = x.cone.geometry)};
     console.log(ret);
     return ret;
+  }
+
+  getAgents(world:string){
+    return this.http.get('https://api.gaia.fantasymaps.org/'+world+'/agents/position')
   }
 }
