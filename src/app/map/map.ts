@@ -35,14 +35,10 @@ declare const turf: any;
 })
 
 export class DeckPipe implements PipeTransform{
-  private _differs!: KeyValueDiffers;
-  constuctor(differs: KeyValueDiffers){
-    this._differs = differs;
-  }
+  constructor(private _differs: KeyValueDiffers){}
   transform(value: any, args?: any): {key: string, value: any}[] {
     const pipe = new KeyValuePipe(this._differs);
     return pipe.transform<string, any>(value, args);
-
   }
 }
 
@@ -104,7 +100,6 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
 
   title: string = "";
 
-  @ViewChild('ibar') ibar!: MatSidenav;
   @ViewChild('sharebar') sharebar!: MatSidenav;
   @ViewChild('screen') screen!: any;
 
@@ -586,13 +581,11 @@ toggleGaiaAgentsLayer(){
     this.http.get('assets/info.json').subscribe(data => {
       this.infoData = data;
     })
-    maplibregl.accessToken = 'pk.eyJ1IjoiYWJyaWNrbyIsImEiOiJjanRkajJ4dzYwZGcwNDNvOGQybnZ2aWU0In0.dHeKsAVs3BmZ0biKTOi7wg';
 
     this.atDate = this.ar.snapshot.params['year'];
     this.start.center = [this.ar.snapshot.params['x'], this.ar.snapshot.params['y']];
     this.start.zoom = this.ar.snapshot.params['z'];
     this.rels = this.ar.snapshot.params['rels'];
-    this.style = this.style;
     this.layers = {};
 
     this.ofm.getMap(this.ar.snapshot.params['timeline']).subscribe((data: any) => {
@@ -1042,18 +1035,18 @@ toggleGaiaAgentsLayer(){
         this.times = [];
         const units: Map<string,number> = new Map<string, number>();
         units.set("s",60).set("min", 60).set("h", 24).set("d", 30).set("mo", 12).set("y", 1);
+        const unitNames = Array.from(units.keys());
         for(let t of this.ofm_meta.speeds){
           let ms = ll*9.461e+15/(299792458*Math.pow(t.multiplier,10/3));
-          let cuu = "s";
-          for(let u of Object.keys(units)){
-            if(units.get(u)){
-              ms = ms/units.get(u)!;
-              if (ms >= 1){
-                cuu = u;
-              } else {
-                ms = ms*units.get(u)!;
-                break;
-              }
+          let cuu = unitNames[0];
+          for (let i = 0; i < unitNames.length - 1; i++) {
+            const toNext = units.get(unitNames[i])!;
+            const scaled = ms / toNext;
+            if (scaled >= 1) {
+              ms = scaled;
+              cuu = unitNames[i + 1];
+            } else {
+              break;
             }
           }
           this.times.push({

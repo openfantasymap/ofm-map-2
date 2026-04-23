@@ -16,7 +16,7 @@ export class ActiveRoute {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, ActiveRoute],
   standalone: true,
   templateUrl: './app.html',
   styleUrl: './app.scss',
