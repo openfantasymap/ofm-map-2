@@ -1,29 +1,173 @@
+:host { display: block; background: var(--ofm-surface); min-height: 100vh; }
 
+mat-toolbar {
+  background: var(--ofm-surface);
+  color: var(--ofm-text);
+  border-bottom: 1px solid var(--ofm-border-faint);
+  padding: 0 var(--space-md);
+  gap: var(--space-xs);
+
+  h1 {
+    font-family: var(--ofm-font-display);
+    font-size: var(--ofm-size-lg);
+    font-weight: 500;
+    font-variant: small-caps;
+    letter-spacing: var(--ofm-track-tight);
+    color: var(--ofm-text);
+  }
+
+  .mat-mdc-icon-button {
+    color: var(--ofm-text-muted);
+    transition: color var(--ofm-dur-1) var(--ofm-ease);
+    &:hover { color: var(--ofm-text); }
+  }
+}
+
+mat-sidenav-container {
+  background: var(--ofm-surface);
+  min-height: calc(100vh - 64px);
+}
+
+// ─────── Left info panel ───────
+.sidebar {
+  width: 320px;
+  background: var(--ofm-surface-high);
+  color: var(--ofm-text);
+  border-right: 1px solid var(--ofm-border);
+
+  mat-nav-list a[mat-list-item] {
+    font-family: var(--ofm-font-body);
+    font-size: var(--ofm-size-sm);
+    color: var(--ofm-text-muted);
+    transition: color var(--ofm-dur-1) var(--ofm-ease);
+
+    &:hover { color: var(--ofm-accent); }
+  }
+}
+
+.info {
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  font-family: var(--ofm-font-body);
+  font-size: var(--ofm-size-sm);
+  line-height: var(--ofm-lead-body);
+  color: var(--ofm-text-muted);
+  max-width: 60ch;
+
+  // Drop-cap the first letter — editorial tic that earns its place here
+  &::first-letter {
+    font-family: var(--ofm-font-display);
+    font-size: 3.25em;
+    float: left;
+    line-height: 0.85;
+    margin: 0.08em 0.12em -0.05em 0;
+    color: var(--ofm-text);
+  }
+}
+
+// ─────── Main canvas ───────
+.col {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+mat-chip-listbox {
+  width: 100%;
+  min-height: unset;
+  gap: var(--space-2xs);
+
+  .mat-mdc-chip {
+    --mdc-chip-container-height: 28px;
+    --mdc-chip-label-text-font: var(--ofm-font-body);
+    --mdc-chip-label-text-size: var(--ofm-size-xs);
+    --mdc-chip-label-text-tracking: 0.04em;
+
+    background: transparent;
+    border: 1px solid var(--ofm-border);
+    color: var(--ofm-text-muted);
+    text-transform: lowercase;
+    letter-spacing: var(--ofm-track-loose);
+    transition: border-color var(--ofm-dur-1) var(--ofm-ease),
+                color var(--ofm-dur-1) var(--ofm-ease),
+                background var(--ofm-dur-1) var(--ofm-ease);
+
+    &:hover {
+      border-color: var(--ofm-text-muted);
+      color: var(--ofm-text);
+    }
+
+    &.mdc-evolved-chip--highlighted,
+    &[aria-pressed="true"],
+    &.mat-mdc-chip-highlighted {
+      background: var(--ofm-accent-wash);
+      border-color: var(--ofm-accent);
+      color: var(--ofm-text);
+    }
+  }
+}
+
+// ─────── World grid ───────
 #ohm_timelines {
-    height: calc(100vh - 64px - 16px - 1px - 20px);
-    width: calc(100vw - 20px);
+  width: 100%;
+  height: auto;
 }
 
-mat-chip-listbox{
-    width: 100%;
-    min-height: 40px;
+mat-grid-list {
+  width: 100%;
+  margin: 0;
 }
 
-mat-grid-list{
-    width: 1600px;
-    margin-left:auto;
-    margin-right:auto;
-}
 mat-grid-tile {
-    background: darkred;
-  }
-  .sidebar {
-      width: 256px;
-      //background-color: rgb(109, 62, 0);
-      color: white;
-  }
-  
+  background: var(--ofm-surface-high);
+  color: var(--ofm-text);
+  border-radius: var(--ofm-radius-md);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: transform var(--ofm-dur-2) var(--ofm-ease),
+              box-shadow var(--ofm-dur-2) var(--ofm-ease);
 
-.info{
-    padding: 15px;
+  // Tiles receive inline styles for bg / bgimg / color from the feed.
+  // Treat those as authoritative; we just add a top→bottom wash for label legibility.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      oklch(0 0 0 / 0) 35%,
+      oklch(0 0 0 / 0.55) 100%
+    );
+  }
+
+  // Inner content — the world name
+  .mat-grid-tile-content {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 1;
+    padding: var(--space-md);
+    justify-content: flex-start;
+    align-items: flex-end;
+    font-family: var(--ofm-font-display);
+    font-size: var(--ofm-size-lg);
+    font-weight: 500;
+    letter-spacing: var(--ofm-track-tight);
+    line-height: var(--ofm-lead-tight);
+    color: oklch(0.98 0.01 80);
+    text-shadow: 0 1px 12px oklch(0 0 0 / 0.55);
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.45);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ofm-accent);
+    outline-offset: 3px;
+  }
 }

@@ -1,16 +1,16 @@
-<mat-toolbar color="secondary">
-    <button #stgl mat-icon-button (click)="lbar.toggle()"><mat-icon>info</mat-icon></button>
+<mat-toolbar>
+    <button #stgl mat-icon-button aria-label="About" (click)="lbar.toggle()"><mat-icon>info</mat-icon></button>
     <h1>OpenFantasyMap</h1>
     <span class="spacer"></span>
 
-    <button mat-icon-button (click)="disabled()" class="hidesmall"><mat-icon>person</mat-icon></button>
+    <button mat-icon-button aria-label="Account (coming soon)" (click)="disabled()" class="hidesmall"><mat-icon>person</mat-icon></button>
 
 </mat-toolbar>
 
 <mat-sidenav-container>
     <mat-sidenav class="sidebar" mode="over" #lbar>
         <div class="info">
-            OpenFantasyMap and FantasyMaps are a projects developed by OpenHistoryMap to create a non conventional use case for Digital Humanities and Public History.
+            OpenFantasyMap and FantasyMaps are projects developed by OpenHistoryMap as an unconventional use case for Digital Humanities and Public History.
         </div>
         <mat-nav-list>
             <a mat-list-item href="https://www.fantasymaps.org">More info</a>

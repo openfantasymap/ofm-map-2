@@ -1,92 +1,214 @@
+// Heights hard-coded here mirror the original calc chain:
+//   toolbar 64 + timebar 40 + visualization 83 + separators ≈ 190
+// Keep the math so MapLibre lays out identically; restyle only.
+
+:host { display: block; background: var(--ofm-surface); }
+
 #ohm_map {
-    height: calc(100vh - 85px - 64px - 2px - 19px);
-    width: 100vw;
+  height: calc(100vh - 85px - 64px - 2px - 19px);
+  width: 100vw;
 }
 
 #visualization {
-    width: calc(100vw - 5px);
-    max-height: 83px;
-    border: 1px solid lightgray;
+  width: 100vw;
+  max-height: 83px;
+  border-top: 1px solid var(--ofm-border-faint);
+  background: var(--ofm-surface-raised);
 }
 
-.vis-item.politcs-rome {
-    background-color: red;
+// vis-timeline category colors — used to be `red`
+.vis-item.politcs-rome,
+.vis-item.politics-rome {
+  background-color: var(--ofm-accent-wash);
+  border-color: var(--ofm-accent);
 }
 
 .sidebar {
-    width: 256px;
-    background-color: #3f51b5;
-    color: white;
+  width: 320px;
+  background: var(--ofm-surface-high);
+  color: var(--ofm-text);
+  border-right: 1px solid var(--ofm-border);
+
+  // right-docked shares this class; mirror the border
+  &[position="end"] {
+    border-right: 0;
+    border-left: 1px solid var(--ofm-border);
+  }
+
+  // Section titles in the side panels
+  [mat-subheader] {
+    font-family: var(--ofm-font-body);
+    font-weight: 500;
+    font-size: var(--ofm-size-2xs);
+    letter-spacing: var(--ofm-track-loose);
+    text-transform: uppercase;
+    color: var(--ofm-text-faint);
+    padding: var(--space-md) var(--space-md) var(--space-xs);
+    margin: 0;
+  }
+
+  [mat-subheader]:first-of-type { padding-top: var(--space-lg); }
+
+  .mat-mdc-list-item-unscoped-content,
+  .mat-mdc-list-item-line,
+  .mdc-list-item__primary-text {
+    font-family: var(--ofm-font-body);
+    font-size: var(--ofm-size-sm);
+    color: var(--ofm-text);
+  }
+
+  [matListItemLine] {
+    color: var(--ofm-text-muted);
+    font-size: var(--ofm-size-xs);
+  }
 }
 
-.info{
-    padding: 16px;
+.info {
+  padding: var(--space-lg) var(--space-md);
+  font-size: var(--ofm-size-sm);
+  color: var(--ofm-text-muted);
+  line-height: var(--ofm-lead-body);
+  max-width: 60ch;
+
+  :is(h1, h2, h3) {
+    font-family: var(--ofm-font-display);
+    color: var(--ofm-text);
+    margin-bottom: var(--space-xs);
+  }
 }
 
-#ofm_attribution{
-    position:absolute;
-    bottom:86px;
-    right: 0;
-    text-align: right;
-    background-color: rgba(200,200,200,0.5);
-    font-size: x-small;
-    padding-left: 2px;
-    padding-right: 2px;
-    border-radius: 3px;
+// ─────── Top toolbar ───────
+mat-toolbar {
+  background: var(--ofm-surface);
+  color: var(--ofm-text);
+  border-bottom: 1px solid var(--ofm-border-faint);
+  padding: 0 var(--space-md);
+  gap: var(--space-xs);
+
+  h1 {
+    font-family: var(--ofm-font-display);
+    font-size: var(--ofm-size-lg);
+    font-weight: 500;
+    letter-spacing: var(--ofm-track-tight);
+    color: var(--ofm-text);
+
+    // "OpenFantasyMap - {title}" — dim the product name, let the world name lead
+    // We pre-render as a single string, so use a subtle CSS effect instead
+    font-variant: small-caps;
+  }
+
+  .mat-mdc-icon-button {
+    color: var(--ofm-text-muted);
+    transition: color var(--ofm-dur-1) var(--ofm-ease),
+                background var(--ofm-dur-1) var(--ofm-ease);
+
+    &:hover { color: var(--ofm-text); }
+  }
+
+  // Patreon / FVTT icons are image-in-mat-icon; keep image at native color
+  a .mat-icon img { filter: none; }
 }
 
-.mat-subheader{
-    font-size: large;
-    color:white;
+mat-sidenav-container {
+  height: calc(100vh - 64px);
+  background: var(--ofm-surface);
 }
 
-.mat-list-item-content{
-    font-size: small;
-    color: white;
+// ─────── Map surface overlays ───────
+#ofm_attribution {
+  position: absolute;
+  bottom: calc(83px + var(--space-xs));
+  right: var(--space-xs);
+  max-width: 50vw;
+  padding: var(--space-2xs) var(--space-xs);
+  text-align: right;
+  font-family: var(--ofm-font-body);
+  font-size: var(--ofm-size-2xs);
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--ofm-text-muted);
+  background: var(--ofm-overlay);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--ofm-border-faint);
+  border-radius: var(--ofm-radius-sm);
+
+  a { color: var(--ofm-text); }
+  a:hover { color: var(--ofm-accent); }
 }
 
-#timebar{
-    position:fixed;
-    margin-left:calc(50vw - 150px);
-    width: 300px;
-    border-top-right-radius: 15px;
-    border-top-left-radius: 15px;
-    bottom: 104px;
-    background-color: #212121;
+// ─────── Time instrument ───────
+#timebar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(83px + var(--space-md));
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  background: var(--ofm-surface-raised);
+  border: 1px solid var(--ofm-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px oklch(0 0 0 / 0.35);
+
+  // Date button — the star of the timebar
+  > button[mat-button] {
+    font-family: var(--ofm-font-display);
+    font-size: var(--ofm-size-md);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--ofm-text);
+    padding: 0 var(--space-sm);
+    min-height: 36px;
+    border-radius: 999px;
+    font-variant-numeric: oldstyle-nums;
+  }
+
+  .mat-mdc-icon-button {
+    --mdc-icon-button-state-layer-size: 36px;
+    color: var(--ofm-text-muted);
+
+    &:hover { color: var(--ofm-accent); }
+  }
 }
 
-mat-sidenav-container{
-    height: calc(100vh - 84px);
-}
+// ─────── Gaia watcher (top-right on the map) ───────
+.gaiawm {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 71px;
+  height: 48px;
+  padding: 0;
+  background: transparent;
+  background-image: url(/assets/images/gaia_eye2.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.82;
+  transition: opacity var(--ofm-dur-2) var(--ofm-ease),
+              transform var(--ofm-dur-2) var(--ofm-ease),
+              filter   var(--ofm-dur-2) var(--ofm-ease);
 
-.gaiawm{
-    position:absolute;
-    top: 20px;
-    right: 20px;
-    width: 71px;
-    height: 48px;
-    background-size: contain;
-    background-image: url(/assets/images/gaia_eye2.png);
-    background-color: transparent;
-    border: 0;
-    
+  &:hover {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px var(--ofm-accent-focus));
+  }
+
+  &:active { transform: scale(0.97); }
 }
 
 .gaiabar {
-    width: 48px;
-    height: 48px;
-    background-size: contain;
-    background-image: url(/assets/images/gaia_eye2.png);
-    background-color: transparent;
-    background-repeat: no-repeat;
-    background-position: center;
-    border: 0;
- 
+  width: 48px;
+  height: 48px;
+  background: transparent url(/assets/images/gaia_eye2.png) center / contain no-repeat;
+  border: 0;
 }
 
-.row{
-    display:flex;
-    flex-direction: row;
+.row {
+  display: flex;
+  flex-direction: row;
+  position: relative;
 }
-
-

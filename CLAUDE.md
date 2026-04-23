@@ -74,3 +74,24 @@ The Docker image's `docker-entrypoint.sh` runs `jq -n env > ./assets/env.json` a
 - `showOverlays()` is mostly commented-out legacy OHM layers. Leave commented blocks unless the user explicitly asks to clean them up.
 - `MapComponent.ts` is declared as `any` and only read by the dev-mode branch of `transformRequest`; it is never assigned, so the dev-mode tile-URL rewrite currently produces bogus `undefined<timeline>/...` URLs. If you need a local tile proxy in dev, wire it up explicitly — don't trust this branch as-is.
 - Do not reintroduce a `maplibregl.accessToken` assignment — MapLibre ignores it, and a committed Mapbox `pk.*` token triggers GitHub push protection.
+
+## Design Context
+
+Full canonical version lives in `.impeccable.md` — read that before any visual work. Summary:
+
+- **Users:** tabletop RPG GMs/players browsing fantasy worlds from a desk. Desktop-first. Archival exploration, not a productivity tool.
+- **Personality (three words):** atlas, archival, unhurried. Museum cartographic exhibit, not video game.
+- **Aesthetic:** editorial / National Geographic. Warm dark. One rich accent, used rarely. Chrome is a frame; the map is the subject.
+- **Shell:** neutral across all worlds — chrome does not adapt per world.
+- **Type:** Vollkorn (display) + Public Sans (body) from Google Fonts. All reflex fonts (Fraunces, Crimson, Playfair, Newsreader, Instrument Serif, DM Serif, IBM Plex, Inter, DM Sans, etc.) are rejected. No monospace-as-technical-shorthand.
+- **Color:** OKLCH neutrals tinted warm (hue ~55°), ember accent `oklch(0.68 0.14 45)`. Patreon FieryCoral on the Patreon button is immutable and derives nothing else.
+- **Anti-references (actively rejected):** generic SaaS dashboard; Google Maps clone; D&D Beyond / Roll20 aesthetic; AI-slop fantasy (purple/blue gradients, neon cyan, glowing runes).
+- **Accessibility posture:** user deprioritized WCAG targets; preserve focus indicators and `prefers-reduced-motion` anyway. Do not chase contrast ratios at the cost of atmosphere.
+
+### Design principles
+
+1. The map is the subject. Chrome is a frame.
+2. Warm, not cool. Dark sepia, not neon.
+3. One accent, used rarely.
+4. Typography does the hierarchy — not color, gradient, or glow.
+5. Negative space is a feature.

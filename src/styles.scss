@@ -1,58 +1,197 @@
-
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
 html {
   @include mat.theme((
     color: (
       primary: mat.$rose-palette,
-      tertiary: mat.$blue-palette,
+      tertiary: mat.$orange-palette,
     ),
-    typography: Roboto,
+    typography: (
+      plain-family: 'Public Sans',
+      brand-family: 'Vollkorn',
+    ),
     density: 0,
   ));
 
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
   color-scheme: dark;
 
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-}/* You can add global styles to this file, and also import other style files */
+  // OFM tokens — see .impeccable.md for rationale
+  --ofm-surface:         oklch(0.17 0.012 55);
+  --ofm-surface-raised:  oklch(0.22 0.015 55);
+  --ofm-surface-high:    oklch(0.28 0.018 55);
+  --ofm-overlay:         oklch(0.22 0.015 55 / 0.72);
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-/* You can add global styles to this file, and also import other style files */
+  --ofm-border:          oklch(0.32 0.012 55);
+  --ofm-border-faint:    oklch(0.25 0.010 55);
+
+  --ofm-text:            oklch(0.95 0.010 80);
+  --ofm-text-muted:      oklch(0.72 0.015 70);
+  --ofm-text-faint:      oklch(0.55 0.012 65);
+
+  --ofm-accent:          oklch(0.68 0.14 45);
+  --ofm-accent-hover:    oklch(0.74 0.14 45);
+  --ofm-accent-pressed:  oklch(0.60 0.14 45);
+  --ofm-accent-focus:    oklch(0.68 0.14 45 / 0.35);
+  --ofm-accent-wash:     oklch(0.68 0.14 45 / 0.08);
+
+  --ofm-font-display:    'Vollkorn', 'Iowan Old Style', 'Palatino', serif;
+  --ofm-font-body:       'Public Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --ofm-size-2xs:  0.6875rem;  //  11
+  --ofm-size-xs:   0.8125rem;  //  13
+  --ofm-size-sm:   0.9375rem;  //  15
+  --ofm-size-md:   1rem;       //  16
+  --ofm-size-lg:   1.25rem;    //  20 — section head
+  --ofm-size-xl:   1.75rem;    //  28 — surface head
+  --ofm-size-2xl:  2.5rem;     //  40 — page head
+
+  --ofm-lead-tight:  1.15;
+  --ofm-lead-body:   1.45;
+  --ofm-lead-loose:  1.65;
+
+  --ofm-track-tight:  -0.01em;
+  --ofm-track-body:   0;
+  --ofm-track-loose:   0.08em;
+
+  --space-2xs:  4px;
+  --space-xs:   8px;
+  --space-sm:  12px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  --ofm-radius-sm:  4px;
+  --ofm-radius-md:  8px;
+  --ofm-radius-lg: 14px;
+
+  --ofm-ease:     cubic-bezier(0.22, 1, 0.36, 1);      // ease-out-quart
+  --ofm-ease-in:  cubic-bezier(0.64, 0, 0.78, 0);      // ease-in-quart
+  --ofm-dur-1:    120ms;
+  --ofm-dur-2:    180ms;
+  --ofm-dur-3:    260ms;
+
+  // Retheme Angular Material system vars onto the OFM palette
+  --mat-sys-surface:                     var(--ofm-surface);
+  --mat-sys-surface-container-lowest:    var(--ofm-surface);
+  --mat-sys-surface-container-low:       var(--ofm-surface);
+  --mat-sys-surface-container:           var(--ofm-surface-raised);
+  --mat-sys-surface-container-high:      var(--ofm-surface-high);
+  --mat-sys-surface-container-highest:   var(--ofm-surface-high);
+  --mat-sys-on-surface:                  var(--ofm-text);
+  --mat-sys-on-surface-variant:          var(--ofm-text-muted);
+  --mat-sys-outline:                     var(--ofm-border);
+  --mat-sys-outline-variant:             var(--ofm-border-faint);
+  --mat-sys-primary:                     var(--ofm-accent);
+  --mat-sys-on-primary:                  var(--ofm-surface);
+  --mat-sys-secondary:                   var(--ofm-accent);
+  --mat-sys-on-secondary:                var(--ofm-surface);
+  --mat-sys-tertiary:                    var(--ofm-accent);
+  --mat-sys-on-tertiary:                 var(--ofm-surface);
+  --mat-sys-background:                  var(--ofm-surface);
+  --mat-sys-on-background:               var(--ofm-text);
+  --mat-sys-inverse-surface:             var(--ofm-text);
+  --mat-sys-inverse-on-surface:          var(--ofm-surface);
+
+  background-color: var(--ofm-surface);
+  color: var(--ofm-text);
+  font: 400 var(--ofm-size-md) / var(--ofm-lead-body) var(--ofm-font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
 
 html,
 body {
-    height: 100%;
-    background-color: #3f51b5;
+  height: 100%;
+  margin: 0;
 }
 
 body {
-    margin: 0;
-    font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: var(--ofm-surface);
+  color: var(--ofm-text);
+  font-family: var(--ofm-font-body);
 }
 
-.spacer {
-    flex: 1 1 10px;
+h1, h2, h3, h4 {
+  font-family: var(--ofm-font-display);
+  font-weight: 500;
+  letter-spacing: var(--ofm-track-tight);
+  line-height: var(--ofm-lead-tight);
+  margin: 0;
 }
 
-@media screen and (max-width:768px)
-{
-     .hidesmall  {display:none !important;}
+a {
+  color: var(--ofm-text);
+  text-decoration: none;
+  text-underline-offset: 0.15em;
+  transition: color var(--ofm-dur-1) var(--ofm-ease);
+
+  &:hover { color: var(--ofm-accent); }
 }
 
-.vis-text{
-    color:white !important;
+:focus-visible {
+  outline: 2px solid var(--ofm-accent);
+  outline-offset: 2px;
+}
+
+.spacer { flex: 1 1 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .hidesmall { display: none !important; }
+}
+
+// ─────────── vis-timeline warm-dark override ───────────
+// The vis-timeline CSS from CDN assumes a light canvas. Retheme globally.
+.vis-timeline {
+  border: 0;
+  background: var(--ofm-surface-raised);
+  color: var(--ofm-text);
+  font-family: var(--ofm-font-body) !important;
+  font-size: var(--ofm-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.vis-panel.vis-center,
+.vis-panel.vis-left,
+.vis-panel.vis-right,
+.vis-panel.vis-top,
+.vis-panel.vis-bottom { border-color: var(--ofm-border-faint); }
+
+.vis-labelset .vis-label,
+.vis-time-axis .vis-text      { color: var(--ofm-text-muted); }
+.vis-time-axis .vis-grid.vis-minor { border-color: var(--ofm-border-faint); }
+.vis-time-axis .vis-grid.vis-major { border-color: var(--ofm-border); }
+.vis-time-axis .vis-text.vis-major { color: var(--ofm-text); }
+
+.vis-item {
+  background-color: var(--ofm-surface-high);
+  border-color: var(--ofm-border);
+  color: var(--ofm-text);
+  border-radius: var(--ofm-radius-sm);
+}
+.vis-item.vis-selected {
+  background-color: var(--ofm-accent-wash);
+  border-color: var(--ofm-accent);
+  color: var(--ofm-text);
+}
+.vis-custom-time[pointer-events] { background: var(--ofm-accent); }
+.vis-custom-time {
+  background: var(--ofm-accent);
+  width: 1px;
+}
+.vis-current-time { background: var(--ofm-accent); }
+.vis-text { color: var(--ofm-text-muted); }
+
+// Material Icons font ships through the global link; ensure ligature rendering
+.material-icons, .mat-icon {
+  font-feature-settings: "liga";
 }
