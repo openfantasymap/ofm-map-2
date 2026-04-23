@@ -110,48 +110,52 @@ mat-chip-listbox {
 }
 
 // ─────── World grid ───────
-#ohm_timelines {
+// CSS Grid with dense packing so variable-size tiles don't staircase.
+// mat-grid-list was row-major and couldn't fill holes.
+
+.world-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-auto-rows: 180px;
+  grid-auto-flow: dense;
+  gap: var(--space-sm);
   width: 100%;
-  height: auto;
 }
 
-mat-grid-list {
-  width: 100%;
-  margin: 0;
-}
-
-mat-grid-tile {
-  background: var(--ofm-surface-high);
-  color: var(--ofm-text);
-  border-radius: var(--ofm-radius-md);
-  overflow: hidden;
+.world-tile {
   position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--ofm-radius-md);
+  background: var(--ofm-surface-high);
+  background-size: cover;
+  background-position: center;
+  color: var(--ofm-text);
+  text-decoration: none;
   cursor: pointer;
+  isolation: isolate;
   transition: transform var(--ofm-dur-2) var(--ofm-ease),
               box-shadow var(--ofm-dur-2) var(--ofm-ease);
 
-  // Tiles receive inline styles for bg / bgimg / color from the feed.
-  // Treat those as authoritative; we just add a top→bottom wash for label legibility.
+  // Bottom wash for name legibility, not competing with the tile art.
   &::after {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 0;
     pointer-events: none;
     background: linear-gradient(
       to bottom,
-      oklch(0 0 0 / 0) 35%,
+      oklch(0 0 0 / 0) 45%,
       oklch(0 0 0 / 0.55) 100%
     );
   }
 
-  // Inner content — the world name
-  .mat-grid-tile-content {
+  &__name {
     position: absolute;
     inset: auto 0 0 0;
     z-index: 1;
     padding: var(--space-md);
-    justify-content: flex-start;
-    align-items: flex-end;
     font-family: var(--ofm-font-display);
     font-size: var(--ofm-size-lg);
     font-weight: 500;

@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatGridListModule } from '@angular/material/grid-list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -15,7 +14,7 @@ import { LocationUpgradeModule } from '@angular/common/upgrade';
 
 @Component({
   selector: 'app-timelines',
-  imports: [MatToolbarModule, MatIconModule, MatSidenavModule, MatChipsModule, MatListModule, MatGridListModule, RouterModule, CommonModule, MatButtonModule],
+  imports: [MatToolbarModule, MatIconModule, MatSidenavModule, MatChipsModule, MatListModule, RouterModule, CommonModule, MatButtonModule],
   templateUrl: './timelines.html',
   styleUrl: './timelines.scss',
   standalone: true,
