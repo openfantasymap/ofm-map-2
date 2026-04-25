@@ -8,7 +8,7 @@ html {
     ),
     typography: (
       plain-family: 'Public Sans',
-      brand-family: 'Vollkorn',
+      brand-family: 'Spectral',
     ),
     density: 0,
   ));
@@ -28,14 +28,31 @@ html {
   --ofm-text-muted:      oklch(0.72 0.015 70);
   --ofm-text-faint:      oklch(0.55 0.012 65);
 
-  --ofm-accent:          oklch(0.68 0.14 45);
-  --ofm-accent-hover:    oklch(0.74 0.14 45);
-  --ofm-accent-pressed:  oklch(0.60 0.14 45);
-  --ofm-accent-focus:    oklch(0.68 0.14 45 / 0.35);
-  --ofm-accent-wash:     oklch(0.68 0.14 45 / 0.08);
+  // Cinnabar — vermilion ink stamp, in line with fantasymaps.org
+  --ofm-accent:          oklch(0.70 0.18 32);
+  --ofm-accent-hover:    oklch(0.78 0.16 32);
+  --ofm-accent-pressed:  oklch(0.62 0.18 32);
+  --ofm-accent-focus:    oklch(0.70 0.18 32 / 0.35);
+  --ofm-accent-wash:     oklch(0.70 0.18 32 / 0.10);
 
-  --ofm-font-display:    'Vollkorn', 'Iowan Old Style', 'Palatino', serif;
-  --ofm-font-body:       'Public Sans', ui-sans-serif, system-ui, sans-serif;
+  --ofm-font-display:    'Spectral', 'Iowan Old Style', 'Charter', 'Palatino Linotype', Georgia, serif;
+  --ofm-font-body:       'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ofm-font-mono:       'Fragment Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  // Paper-and-ink aliases (canonical names borrowed from fantasymaps.org)
+  --paper:               var(--ofm-surface);
+  --paper-2:             var(--ofm-surface-raised);
+  --paper-edge:          var(--ofm-surface-high);
+  --ink:                 var(--ofm-text);
+  --ink-2:               var(--ofm-text-muted);
+  --ink-3:               var(--ofm-text-faint);
+  --ink-rule:            var(--ofm-border);
+  --ink-rule-faint:      var(--ofm-border-faint);
+  --cinnabar:            var(--ofm-accent);
+  --cinnabar-ink:        var(--ofm-accent-hover);
+
+  --ofm-rule-w:          0.5px;
+  --ofm-rule-w-bold:     1px;
 
   --ofm-size-2xs:  0.6875rem;  //  11
   --ofm-size-xs:   0.8125rem;  //  13
@@ -118,23 +135,90 @@ body {
 h1, h2, h3, h4 {
   font-family: var(--ofm-font-display);
   font-weight: 500;
-  letter-spacing: var(--ofm-track-tight);
+  letter-spacing: -0.012em;
   line-height: var(--ofm-lead-tight);
+  text-wrap: balance;
   margin: 0;
 }
+
+h1 { font-weight: 600; }
+
+em { font-style: italic; }
 
 a {
   color: var(--ofm-text);
   text-decoration: none;
-  text-underline-offset: 0.15em;
-  transition: color var(--ofm-dur-1) var(--ofm-ease);
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% var(--ofm-rule-w);
+  transition: background-size var(--ofm-dur-3) var(--ofm-ease),
+              color var(--ofm-dur-1) ease;
 
-  &:hover { color: var(--ofm-accent); }
+  &:hover {
+    color: var(--ofm-accent-hover);
+    background-size: 100% 1.5px;
+  }
 }
 
 :focus-visible {
   outline: 2px solid var(--ofm-accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+::selection {
+  background: var(--ofm-accent-wash);
+  color: var(--ofm-text);
+}
+
+// Suppress the underline-grow on anchors that are buttons / list items /
+// chips / tiles — those have their own affordance.
+a[mat-button],
+a[mat-stroked-button],
+a[mat-flat-button],
+a[mat-icon-button],
+a[mat-list-item],
+a[matListItem],
+.mat-mdc-chip a,
+.world-tile {
+  background-image: none;
+  background-size: auto;
+  background-repeat: repeat;
+  background-position: 0 0;
+}
+
+// Editorial mark label — mono caps, tracked, secondary ink.
+.mark {
+  font-family: var(--ofm-font-mono);
+  font-size: var(--ofm-size-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ofm-text-faint);
+  font-weight: 400;
+  display: block;
+  background-image: none;
+
+  &--accent { color: var(--ofm-accent-hover); }
+}
+
+// Chart-room corner ticks — frame a panel like a cartographic plate.
+.chart-corners {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: var(--ofm-rule-w-bold) solid var(--ofm-border);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  &::before { top: 8px;  left: 8px;  border-right: 0; border-bottom: 0; }
+  &::after  { top: 8px;  right: 8px; border-left: 0;  border-bottom: 0; }
 }
 
 .spacer { flex: 1 1 10px; }

@@ -1,6 +1,6 @@
 <mat-toolbar>
     <button mat-icon-button aria-label="Layers and sources" (click)="lbar.toggle()"><mat-icon>map</mat-icon></button>
-    <h1>OpenFantasyMap &mdash; {{title}}</h1>
+    <h1>OpenFantasyMap <em *ngIf="title">&mdash; {{title}}</em></h1>
     <span class="spacer"></span>
     <a href="https://www.patreon.com/openfantasymap" target="_blank" rel="noopener" title="Help us keep this project alive" aria-label="Support on Patreon" mat-icon-button><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png" alt=""></mat-icon></a>
     <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" rel="noopener" title="Use this and other OFM maps on FoundryVTT" aria-label="Open on FoundryVTT" mat-icon-button><mat-icon><img src="/assets/images/fvtt-solid-512.png" alt=""></mat-icon></a>

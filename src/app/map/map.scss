@@ -88,13 +88,14 @@ mat-toolbar {
   h1 {
     font-family: var(--ofm-font-display);
     font-size: var(--ofm-size-lg);
-    font-weight: 500;
-    letter-spacing: var(--ofm-track-tight);
+    font-weight: 600;
+    letter-spacing: -0.012em;
     color: var(--ofm-text);
+    line-height: 1;
 
-    // "OpenFantasyMap - {title}" — dim the product name, let the world name lead
-    // We pre-render as a single string, so use a subtle CSS effect instead
-    font-variant: small-caps;
+    // World name comes after an em-dash; the italic + secondary ink on the
+    // tail is handled by the template, but soften the whole line slightly.
+    em { font-style: italic; font-weight: 500; color: var(--ofm-text-muted); }
   }
 
   .mat-mdc-icon-button {
@@ -122,18 +123,18 @@ mat-sidenav-container {
   max-width: 50vw;
   padding: var(--space-2xs) var(--space-xs);
   text-align: right;
-  font-family: var(--ofm-font-body);
+  font-family: var(--ofm-font-mono);
   font-size: var(--ofm-size-2xs);
-  line-height: 1.3;
-  letter-spacing: 0.01em;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
   color: var(--ofm-text-muted);
   background: var(--ofm-overlay);
   backdrop-filter: blur(6px);
-  border: 1px solid var(--ofm-border-faint);
+  border: var(--ofm-rule-w) solid var(--ofm-border-faint);
   border-radius: var(--ofm-radius-sm);
 
-  a { color: var(--ofm-text); }
-  a:hover { color: var(--ofm-accent); }
+  a { color: var(--ofm-text); background-image: none; }
+  a:hover { color: var(--ofm-accent-hover); }
 }
 
 // ─────── Time instrument ───────
@@ -211,4 +212,20 @@ mat-sidenav-container {
   display: flex;
   flex-direction: row;
   position: relative;
+
+  // Chart-room L-corner ticks frame the live map like a plate from the
+  // marketing site's hero. Pinned to the map wrapper so they survive panning.
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: var(--ofm-rule-w-bold) solid var(--ofm-border);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  &::before { top: 8px; left: 8px;  border-right: 0; border-bottom: 0; }
+  &::after  { top: 8px; right: 8px; border-left: 0;  border-bottom: 0; }
 }

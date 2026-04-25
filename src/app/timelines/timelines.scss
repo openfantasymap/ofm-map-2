@@ -1,25 +1,42 @@
-:host { display: block; background: var(--ofm-surface); min-height: 100vh; }
+:host { display: block; background: var(--paper); min-height: 100vh; }
 
 mat-toolbar {
-  background: var(--ofm-surface);
-  color: var(--ofm-text);
-  border-bottom: 1px solid var(--ofm-border-faint);
+  background: var(--paper);
+  color: var(--ink);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule);
   padding: 0 var(--space-md);
-  gap: var(--space-xs);
+  gap: var(--space-sm);
 
-  h1 {
-    font-family: var(--ofm-font-display);
-    font-size: var(--ofm-size-lg);
-    font-weight: 500;
-    font-variant: small-caps;
-    letter-spacing: var(--ofm-track-tight);
-    color: var(--ofm-text);
+  // Editorial wordmark — display title with a tracked mono sub-line.
+  .wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    gap: 0.2em;
+
+    h1 {
+      font-family: var(--ofm-font-display);
+      font-size: var(--ofm-size-lg);
+      font-weight: 600;
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    &__sub {
+      font-family: var(--ofm-font-mono);
+      font-size: 0.6875rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-weight: 400;
+    }
   }
 
   .mat-mdc-icon-button {
-    color: var(--ofm-text-muted);
+    color: var(--ink-2);
     transition: color var(--ofm-dur-1) var(--ofm-ease);
-    &:hover { color: var(--ofm-text); }
+    &:hover { color: var(--ink); }
   }
 }
 
@@ -66,12 +83,81 @@ mat-sidenav-container {
 
 // ─────── Main canvas ───────
 .col {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: var(--space-xl) var(--space-lg) var(--space-2xl);
+  padding: var(--space-2xl) var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-2xl);
+}
+
+// ─────── Plate header ───────
+// 2/10 fr "margin / body" grid borrowed from the reference; falls back to a
+// stacked layout under 720px to keep the marks readable.
+.plate-head {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 10fr);
+  column-gap: clamp(1rem, 3vw, 3rem);
+  row-gap: var(--space-md);
+  align-items: end;
+  padding-bottom: var(--space-lg);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule);
+
+  &__margin {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    padding-top: 0.4em;
+  }
+
+  &__body { min-width: 0; }
+
+  &__title {
+    font-family: var(--ofm-font-display);
+    font-weight: 500;
+    font-style: italic;
+    font-size: var(--ofm-size-xl);
+    letter-spacing: -0.012em;
+    line-height: var(--ofm-lead-tight);
+    color: var(--ink);
+  }
+
+  &__lede {
+    font-family: var(--ofm-font-display);
+    font-style: italic;
+    font-size: var(--ofm-size-md);
+    color: var(--ink-2);
+    margin-top: var(--space-sm);
+    max-width: 56ch;
+    line-height: var(--ofm-lead-body);
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-sm);
+
+    &__margin {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      padding-top: 0;
+    }
+  }
+}
+
+// ─────── Filter rail ───────
+.filter-rail {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 10fr);
+  column-gap: clamp(1rem, 3vw, 3rem);
+  align-items: baseline;
+
+  > .mark { padding-top: 0.5em; }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
 }
 
 mat-chip-listbox {
@@ -80,38 +166,42 @@ mat-chip-listbox {
   gap: var(--space-2xs);
 
   .mat-mdc-chip {
-    --mdc-chip-container-height: 28px;
-    --mdc-chip-label-text-font: var(--ofm-font-body);
-    --mdc-chip-label-text-size: var(--ofm-size-xs);
-    --mdc-chip-label-text-tracking: 0.04em;
+    --mdc-chip-container-height: 26px;
+    --mdc-chip-label-text-font: var(--ofm-font-mono);
+    --mdc-chip-label-text-size: var(--ofm-size-2xs);
+    --mdc-chip-label-text-tracking: 0.14em;
 
     background: transparent;
-    border: 1px solid var(--ofm-border);
-    color: var(--ofm-text-muted);
-    text-transform: lowercase;
-    letter-spacing: var(--ofm-track-loose);
+    border: var(--ofm-rule-w-bold) solid var(--ink-rule);
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
     transition: border-color var(--ofm-dur-1) var(--ofm-ease),
                 color var(--ofm-dur-1) var(--ofm-ease),
                 background var(--ofm-dur-1) var(--ofm-ease);
 
     &:hover {
-      border-color: var(--ofm-text-muted);
-      color: var(--ofm-text);
+      border-color: var(--ink-2);
+      color: var(--ink);
     }
 
     &.mdc-evolved-chip--highlighted,
     &[aria-pressed="true"],
     &.mat-mdc-chip-highlighted {
       background: var(--ofm-accent-wash);
-      border-color: var(--ofm-accent);
-      color: var(--ofm-text);
+      border-color: var(--cinnabar);
+      color: var(--ink);
     }
   }
 }
 
 // ─────── World grid ───────
 // CSS Grid with dense packing so variable-size tiles don't staircase.
-// mat-grid-list was row-major and couldn't fill holes.
+.worlds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
 
 .world-grid {
   display: grid;
@@ -126,18 +216,21 @@ mat-chip-listbox {
   position: relative;
   display: block;
   overflow: hidden;
-  border-radius: var(--ofm-radius-md);
-  background: var(--ofm-surface-high);
+  border-radius: var(--ofm-radius-sm);
+  background: var(--paper-edge);
   background-size: cover;
   background-position: center;
-  color: var(--ofm-text);
+  color: var(--ink);
   text-decoration: none;
   cursor: pointer;
   isolation: isolate;
-  transition: transform var(--ofm-dur-2) var(--ofm-ease),
-              box-shadow var(--ofm-dur-2) var(--ofm-ease);
+  outline: var(--ofm-rule-w) solid var(--ink-rule);
+  outline-offset: -0.5px;
+  transition: outline-color var(--ofm-dur-2) var(--ofm-ease),
+              transform var(--ofm-dur-2) var(--ofm-ease);
 
-  // Bottom wash for name legibility, not competing with the tile art.
+  // Quieter bottom wash — ink, not pure black, so the wash sits in-key with
+  // the warm dark shell instead of punching through it.
   &::after {
     content: "";
     position: absolute;
@@ -146,9 +239,26 @@ mat-chip-listbox {
     pointer-events: none;
     background: linear-gradient(
       to bottom,
-      oklch(0 0 0 / 0) 45%,
-      oklch(0 0 0 / 0.55) 100%
+      oklch(0.10 0.014 55 / 0) 40%,
+      oklch(0.10 0.014 55 / 0.62) 100%
     );
+  }
+
+  // L-corner ticks evoke the chart-room frame on the reference site.
+  &::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 10px;
+    height: 10px;
+    border: var(--ofm-rule-w-bold) solid oklch(0.95 0.012 80 / 0.55);
+    border-right: 0;
+    border-bottom: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--ofm-dur-2) var(--ofm-ease);
   }
 
   &__name {
@@ -158,20 +268,23 @@ mat-chip-listbox {
     padding: var(--space-md);
     font-family: var(--ofm-font-display);
     font-size: var(--ofm-size-lg);
-    font-weight: 500;
-    letter-spacing: var(--ofm-track-tight);
+    font-weight: 600;
+    font-style: italic;
+    letter-spacing: -0.012em;
     line-height: var(--ofm-lead-tight);
     color: oklch(0.98 0.01 80);
-    text-shadow: 0 1px 12px oklch(0 0 0 / 0.55);
+    text-shadow: 0 1px 10px oklch(0 0 0 / 0.55);
   }
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px oklch(0 0 0 / 0.45);
+    outline-color: var(--cinnabar);
+    transform: translateY(-1px);
+
+    &::before { opacity: 1; }
   }
 
   &:focus-visible {
-    outline: 2px solid var(--ofm-accent);
+    outline: 2px solid var(--cinnabar);
     outline-offset: 3px;
   }
 }

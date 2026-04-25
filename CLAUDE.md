@@ -81,10 +81,11 @@ Full canonical version lives in `.impeccable.md` — read that before any visual
 
 - **Users:** tabletop RPG GMs/players browsing fantasy worlds from a desk. Desktop-first. Archival exploration, not a productivity tool.
 - **Personality (three words):** atlas, archival, unhurried. Museum cartographic exhibit, not video game.
-- **Aesthetic:** editorial / National Geographic. Warm dark. One rich accent, used rarely. Chrome is a frame; the map is the subject.
+- **Aesthetic:** editorial / National Geographic, in line with the marketing site fantasymaps.org. Warm dark paper, cinnabar ink. One rich accent, used rarely. Chrome is a frame; the map is the subject.
 - **Shell:** neutral across all worlds — chrome does not adapt per world.
-- **Type:** Vollkorn (display) + Public Sans (body) from Google Fonts. All reflex fonts (Fraunces, Crimson, Playfair, Newsreader, Instrument Serif, DM Serif, IBM Plex, Inter, DM Sans, etc.) are rejected. No monospace-as-technical-shorthand.
-- **Color:** OKLCH neutrals tinted warm (hue ~55°), ember accent `oklch(0.68 0.14 45)`. Patreon FieryCoral on the Patreon button is immutable and derives nothing else.
+- **Type:** **Spectral** (display serif) + **Public Sans** (body) + **Fragment Mono** (mark labels — uppercase, tracked `0.14em`, used for `PLATE I · CONTENTS`-style register cues). All reflex fonts (Fraunces, Crimson, Playfair, Newsreader, Instrument Serif, DM Serif, IBM Plex, Inter, DM Sans, Vollkorn) are rejected.
+- **Color:** OKLCH neutrals tinted warm (hue ~55°), **cinnabar** accent `oklch(0.70 0.18 32)`. Canonical aliases `--paper`, `--ink`, `--cinnabar` mirror the marketing site's vocabulary. Patreon FieryCoral on the Patreon button is immutable and derives nothing else.
+- **Editorial structure:** pages organise as "plates". Use `.plate-head` (2/10 fr margin/body grid), `.mark` mono labels, and `.chart-corners` L-tick framing for chart-room surfaces.
 - **Anti-references (actively rejected):** generic SaaS dashboard; Google Maps clone; D&D Beyond / Roll20 aesthetic; AI-slop fantasy (purple/blue gradients, neon cyan, glowing runes).
 - **Accessibility posture:** user deprioritized WCAG targets; preserve focus indicators and `prefers-reduced-motion` anyway. Do not chase contrast ratios at the cost of atmosphere.
 

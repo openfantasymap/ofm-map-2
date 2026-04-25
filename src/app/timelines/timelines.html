@@ -1,6 +1,9 @@
 <mat-toolbar>
     <button #stgl mat-icon-button aria-label="About" (click)="lbar.toggle()"><mat-icon>info</mat-icon></button>
-    <h1>OpenFantasyMap</h1>
+    <div class="wordmark">
+        <h1>OpenFantasyMap</h1>
+        <span class="wordmark__sub">Plate &middot; an open atlas</span>
+    </div>
     <span class="spacer"></span>
 
     <button mat-icon-button aria-label="Account (coming soon)" (click)="disabled()" class="hidesmall"><mat-icon>person</mat-icon></button>
@@ -18,23 +21,39 @@
     </mat-sidenav>
     <mat-sidenav-content>
         <div class="col">
-        <mat-chip-listbox [multiple]="true" [selectable]="true" >
-            <mat-chip [highlighted]="t.selected" *ngFor="let t of tags" (click)="filter($event,t.label)">{{t.label}}</mat-chip>   
-        </mat-chip-listbox>
-    
-        <div id="ohm_timelines" class="world-grid">
-            <a *ngFor="let tl of seen_timelines"
-               class="world-tile"
-               [style.background]="tl.bg"
-               [style.color]="tl.color"
-               [style.background-image]="tl.bgimg"
-               [style.grid-column]="'span ' + (tl.size || 1)"
-               [style.grid-row]="'span ' + (tl.size || 1)"
-               [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng]">
-                <span class="world-tile__name">{{tl.name}}</span>
-            </a>
-        </div>
+            <header class="plate-head">
+                <div class="plate-head__margin">
+                    <p class="mark">Plate&nbsp;I</p>
+                    <p class="mark mark--accent">Contents</p>
+                </div>
+                <div class="plate-head__body">
+                    <h2 class="plate-head__title">In this volume</h2>
+                    <p class="plate-head__lede">A survey of imagined worlds — pick a chart and walk in.</p>
+                </div>
+            </header>
+
+            <section class="filter-rail" aria-label="Filter by tag">
+                <p class="mark">By tag</p>
+                <mat-chip-listbox [multiple]="true" [selectable]="true">
+                    <mat-chip [highlighted]="t.selected" *ngFor="let t of tags" (click)="filter($event, t.label)">{{t.label}}</mat-chip>
+                </mat-chip-listbox>
+            </section>
+
+            <section class="worlds" aria-label="Worlds">
+                <p class="mark">The Worlds</p>
+                <div id="ohm_timelines" class="world-grid">
+                    <a *ngFor="let tl of seen_timelines"
+                       class="world-tile"
+                       [style.background]="tl.bg"
+                       [style.color]="tl.color"
+                       [style.background-image]="tl.bgimg"
+                       [style.grid-column]="'span ' + (tl.size || 1)"
+                       [style.grid-row]="'span ' + (tl.size || 1)"
+                       [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng]">
+                        <span class="world-tile__name">{{tl.name}}</span>
+                    </a>
+                </div>
+            </section>
         </div>
     </mat-sidenav-content>
 </mat-sidenav-container>
-<div></div>
