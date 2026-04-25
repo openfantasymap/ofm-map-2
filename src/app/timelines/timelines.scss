@@ -52,13 +52,27 @@ mat-sidenav-container {
   color: var(--ofm-text);
   border-right: 1px solid var(--ofm-border);
 
+  // Mark-style subheaders introduce each list group.
+  [mat-subheader] {
+    font-family: var(--ofm-font-mono);
+    font-size: var(--ofm-size-2xs);
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: var(--space-lg) var(--space-md) var(--space-xs);
+    margin: 0;
+
+    & + & { padding-top: var(--space-xl); }
+  }
+
   mat-nav-list a[mat-list-item] {
-    font-family: var(--ofm-font-body);
+    font-family: var(--ofm-font-display);
     font-size: var(--ofm-size-sm);
-    color: var(--ofm-text-muted);
+    color: var(--ink-2);
     transition: color var(--ofm-dur-1) var(--ofm-ease);
 
-    &:hover { color: var(--ofm-accent); }
+    &:hover { color: var(--cinnabar-ink); }
   }
 }
 
