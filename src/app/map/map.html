@@ -39,7 +39,7 @@
             </div>
         </mat-nav-list>
     </mat-sidenav>
-    <mat-sidenav class="sidebar" mode="over" #rbar position="end">
+    <mat-sidenav class="sidebar" mode="over" #rbar position="end" [hasBackdrop]="!(ractive() === 'annotations' && annotating())">
         @if(ractive() === 'gaia'){
         <mat-toolbar>
             <h1>GaiaWM Context</h1>
