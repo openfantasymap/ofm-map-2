@@ -1,0 +1,14 @@
+.wide {
+  width: 100%;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.coords {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--ofm-font-mono);
+  font-size: var(--ofm-size-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ofm-text-faint);
+}

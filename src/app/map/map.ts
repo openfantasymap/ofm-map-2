@@ -21,6 +21,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { Response } from '../gaia/response/response';
 import { InputDialog } from '../gaia/input/input';
 import { GaiaStorage } from '../gaia-storage';
+import { AnnotationsStorage, Annotation } from '../annotations-storage';
+import { AnnotationDialog } from '../annotation-dialog/annotation-dialog';
 import {MatSlideToggleModule} from '@angular/material/slide-toggle';
 import {MatExpansionModule} from '@angular/material/expansion';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
@@ -332,6 +334,13 @@ drawWedge(){
 
   gaialist = signal<any[]>([]);
 
+  // ─── Annotations ───
+  annotating = signal(false);
+  annotations = signal<Annotation[]>([]);
+  ANNOT_SOURCE_ID = 'annotations';
+  ANNOT_LAYER_ID = 'annotations_layer';
+  ANNOT_LABEL_ID = 'annotations_label';
+
   constructor(
     private ar: ActivatedRoute,
     private l: Location,
@@ -343,11 +352,13 @@ drawWedge(){
     private clipboard: Clipboard,
     private capture: NgxCaptureService,
     private cdr: ChangeDetectorRef,
-    private gs: GaiaStorage
+    private gs: GaiaStorage,
+    private annot: AnnotationsStorage
   ) {
     this.startstopicons.set('stop', 'play_arrow');
     this.startstopicons.set('play', 'stop');
     this.gaialist.set(gs.getPastQueries(ar.snapshot.params['timeline']));
+    this.annotations.set(annot.getAll(ar.snapshot.params['timeline']));
   }
 
   ngOnDestroy(): void {
@@ -549,6 +560,8 @@ drawWedge(){
         filter: ['in', '$type', 'LineString']
       });
 
+      this.registerAnnotationLayers();
+
     });
 
 
@@ -572,7 +585,149 @@ toggleGaiaAgentsLayer(){
 
 }
 
-  
+  // ─── Annotations ──────────────────────────────────────────────────────
+  registerAnnotationLayers() {
+    const world = this.ar.snapshot.params['timeline'];
+    this.map.addSource(this.ANNOT_SOURCE_ID, {
+      type: 'geojson',
+      data: this.annot.getFeatureCollection(world),
+    });
+
+    this.map.addLayer({
+      id: this.ANNOT_LAYER_ID,
+      type: 'circle',
+      source: this.ANNOT_SOURCE_ID,
+      paint: {
+        'circle-radius': 6,
+        'circle-color': 'rgba(196, 70, 50, 0.85)',
+        'circle-stroke-color': 'rgba(245, 240, 230, 0.95)',
+        'circle-stroke-width': 1.5,
+      },
+    });
+
+    this.map.addLayer({
+      id: this.ANNOT_LABEL_ID,
+      type: 'symbol',
+      source: this.ANNOT_SOURCE_ID,
+      layout: {
+        'text-field': ['get', 'title'],
+        'text-size': 11,
+        'text-offset': [0, 1.2],
+        'text-anchor': 'top',
+        'text-allow-overlap': false,
+      },
+      paint: {
+        'text-color': 'rgba(245, 240, 230, 0.95)',
+        'text-halo-color': 'rgba(0, 0, 0, 0.6)',
+        'text-halo-width': 1,
+      },
+    });
+
+    this.map.on('click', this.ANNOT_LAYER_ID, (e: any) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      this.editAnnotation(f.properties.id);
+    });
+
+    this.map.on('mouseenter', this.ANNOT_LAYER_ID, () => {
+      this.map.getCanvas().style.cursor = 'pointer';
+    });
+    this.map.on('mouseleave', this.ANNOT_LAYER_ID, () => {
+      this.map.getCanvas().style.cursor = this.annotating() ? 'crosshair' : '';
+    });
+
+    this.map.on('click', (e: any) => {
+      if (!this.annotating()) return;
+      if (this.measuring || this.drawing) return;
+      const hits = this.map.queryRenderedFeatures(e.point, { layers: [this.ANNOT_LAYER_ID] });
+      if (hits.length) return;
+      this.placeAnnotation(e.lngLat);
+    });
+  }
+
+  toggleAnnotate() {
+    const next = !this.annotating();
+    this.annotating.set(next);
+    if (this.map) {
+      this.map.getCanvas().style.cursor = next ? 'crosshair' : '';
+    }
+  }
+
+  placeAnnotation(lngLat: { lng: number; lat: number }) {
+    const ref = this.md.open(AnnotationDialog, {
+      data: { mode: 'create', title: '', body: '', lat: lngLat.lat, lng: lngLat.lng },
+      width: '420px',
+    });
+    ref.afterClosed().subscribe((res: any) => {
+      if (!res) return;
+      const world = this.ar.snapshot.params['timeline'];
+      this.annot.add(world, lngLat, res.title, res.body);
+      this.refreshAnnotations();
+    });
+  }
+
+  editAnnotation(id: string) {
+    const world = this.ar.snapshot.params['timeline'];
+    const a = this.annot.getAll(world).find(x => x.id === id);
+    if (!a) return;
+    const ref = this.md.open(AnnotationDialog, {
+      data: {
+        mode: 'edit',
+        title: a.title,
+        body: a.body,
+        lat: a.geometry.coordinates[1],
+        lng: a.geometry.coordinates[0],
+      },
+      width: '420px',
+    });
+    ref.afterClosed().subscribe((res: any) => {
+      if (!res) return;
+      if (res.delete) {
+        this.annot.delete(world, id);
+      } else {
+        this.annot.update(world, id, { title: res.title, body: res.body });
+      }
+      this.refreshAnnotations();
+    });
+  }
+
+  deleteAnnotation(id: string) {
+    const world = this.ar.snapshot.params['timeline'];
+    this.annot.delete(world, id);
+    this.refreshAnnotations();
+  }
+
+  locateAnnotation(a: Annotation) {
+    const c = a.geometry.coordinates;
+    this.map.flyTo({ center: c, zoom: Math.max(this.map.getZoom(), 8) });
+  }
+
+  exportAnnotations() {
+    const world = this.ar.snapshot.params['timeline'];
+    const fc = this.annot.getFeatureCollection(world);
+    if (!fc.features.length) {
+      this._snackBar.open('No annotations to export.', 'Close', { duration: 1500 });
+      return;
+    }
+    const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/geo+json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `annotations-${world}-${new Date().toISOString().slice(0, 10)}.geojson`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  private refreshAnnotations() {
+    const world = this.ar.snapshot.params['timeline'];
+    this.annotations.set(this.annot.getAll(world));
+    const src = this.map?.getSource(this.ANNOT_SOURCE_ID);
+    if (src) src.setData(this.annot.getFeatureCollection(world));
+    this.cdr.markForCheck();
+  }
+
   panTo(coords: { lat: number; lng: number; } | { lat: number; lon: number; } | [number, number]) {
     this.map.panTo(coords);
   }

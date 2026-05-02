@@ -1,0 +1,21 @@
+<h2 mat-dialog-title>{{ data.mode === 'edit' ? 'Edit annotation' : 'New annotation' }}</h2>
+<mat-dialog-content>
+  @if (data.lat !== undefined && data.lng !== undefined) {
+    <p class="coords">{{ data.lat.toFixed(4) }}, {{ data.lng.toFixed(4) }}</p>
+  }
+  <mat-form-field class="wide">
+    <mat-label>Title</mat-label>
+    <input matInput [(ngModel)]="title" cdkFocusInitial />
+  </mat-form-field>
+  <mat-form-field class="wide">
+    <mat-label>Note</mat-label>
+    <textarea matInput rows="5" [(ngModel)]="body"></textarea>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (data.mode === 'edit') {
+    <button matButton color="warn" (click)="remove()">Delete</button>
+  }
+  <button matButton (click)="cancel()">Cancel</button>
+  <button matButton color="primary" (click)="save()">Save</button>
+</mat-dialog-actions>

@@ -208,6 +208,74 @@ mat-sidenav-container {
   border: 0;
 }
 
+// ─────── Annotations panel (right sidebar) ───────
+.annot-actions {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--ofm-border-faint);
+
+  .annot-hint {
+    margin: var(--space-xs) 0 0;
+    color: var(--ofm-text-muted);
+  }
+}
+
+.annot-empty {
+  padding: var(--space-lg) var(--space-md);
+  font-family: var(--ofm-font-display);
+  font-style: italic;
+  color: var(--ofm-text-muted);
+}
+
+.annot-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.annot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-2xs);
+  border-bottom: 1px solid var(--ofm-border-faint);
+  transition: background var(--ofm-dur-1) var(--ofm-ease);
+
+  &:hover { background: var(--ofm-surface-raised); }
+
+  .annot-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 var(--space-2xs);
+  }
+
+  .annot-title {
+    font-family: var(--ofm-font-display);
+    font-size: var(--ofm-size-sm);
+    font-weight: 500;
+    color: var(--ofm-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: var(--ofm-lead-tight);
+  }
+
+  .annot-snippet {
+    font-family: var(--ofm-font-body);
+    font-size: var(--ofm-size-2xs);
+    color: var(--ofm-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+
+  .mat-mdc-icon-button {
+    --mdc-icon-button-state-layer-size: 32px;
+    color: var(--ofm-text-muted);
+
+    &:hover { color: var(--ofm-accent-hover); }
+  }
+}
+
 .row {
   display: flex;
   flex-direction: row;

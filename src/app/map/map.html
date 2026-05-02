@@ -4,6 +4,7 @@
     <span class="spacer"></span>
     <a href="https://www.patreon.com/openfantasymap" target="_blank" rel="noopener" title="Help us keep this project alive" aria-label="Support on Patreon" mat-icon-button><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png" alt=""></mat-icon></a>
     <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" rel="noopener" title="Use this and other OFM maps on FoundryVTT" aria-label="Open on FoundryVTT" mat-icon-button><mat-icon><img src="/assets/images/fvtt-solid-512.png" alt=""></mat-icon></a>
+    <button mat-icon-button aria-label="Annotate this map" (click)="ractive.set('annotations'); rbar.open()" class="hidesmall"><mat-icon>edit_location_alt</mat-icon></button>
     <button mat-icon-button aria-label="Share this view" (click)="ractive.set('share'); rbar.toggle()" class="hidesmall"><mat-icon>share</mat-icon></button>
     <button mat-button aria-label="GaiaWM context" (click)="ractive.set('gaia'); rbar.toggle()" class="hidesmall gaiabar">
         @if (gaialoading() === true){
@@ -79,6 +80,37 @@
             <a share="" mat-list-item><mat-icon>alternate_email</mat-icon> Share on Twitter</a>
             <a share="https://static.fantasymaps.org/mcp/mcp" mat-list-item><mat-icon>hub</mat-icon> Share via MCP</a>
         </mat-list>
+    }
+    @if(ractive() === 'annotations'){
+        <mat-toolbar>
+            <h1>Annotations</h1>
+            <span class="spacer"></span>
+            <button mat-icon-button aria-label="Export as GeoJSON" (click)="exportAnnotations()" title="Export as GeoJSON"><mat-icon>file_download</mat-icon></button>
+            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
+        </mat-toolbar>
+
+        <div class="annot-actions">
+            <mat-slide-toggle [checked]="annotating()" (toggleChange)="toggleAnnotate()">Annotate mode</mat-slide-toggle>
+            <p class="annot-hint mark">{{ annotating() ? 'Click on the map to drop a marker' : 'Toggle on, then click the map' }}</p>
+        </div>
+
+        @if (annotations().length === 0) {
+            <p class="annot-empty">No annotations on this world yet.</p>
+        } @else {
+            <div class="annot-list">
+                @for (a of annotations(); track a.id) {
+                    <div class="annot-row">
+                        <button mat-icon-button (click)="locateAnnotation(a)" aria-label="Locate on map"><mat-icon>location_on</mat-icon></button>
+                        <div class="annot-body">
+                            <div class="annot-title">{{ a.title }}</div>
+                            @if (a.body) { <div class="annot-snippet">{{ a.body }}</div> }
+                        </div>
+                        <button mat-icon-button (click)="editAnnotation(a.id)" aria-label="Edit"><mat-icon>edit</mat-icon></button>
+                        <button mat-icon-button (click)="deleteAnnotation(a.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                    </div>
+                }
+            </div>
+        }
     }
     @if(ractive() === 'events'){
 
