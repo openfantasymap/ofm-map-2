@@ -1,14 +1,20 @@
 import { Injectable } from '@angular/core';
 
+export type AnnotationGeometry =
+  | { type: 'Point'; coordinates: [number, number] }
+  | { type: 'LineString'; coordinates: [number, number][] }
+  | { type: 'Polygon'; coordinates: [number, number][][] };
+
 export interface Annotation {
   id: string;
   world: string;
   title: string;
   body: string;
   color?: string;
+  icon?: string;
   created: string;
   updated?: string;
-  geometry: { type: 'Point'; coordinates: [number, number] };
+  geometry: AnnotationGeometry;
 }
 
 export const ANNOTATION_PALETTE: { name: string; value: string }[] = [
@@ -18,6 +24,33 @@ export const ANNOTATION_PALETTE: { name: string; value: string }[] = [
   { name: 'Lapis',     value: '#5064c3' },
   { name: 'Plum',      value: '#965a96' },
   { name: 'Bone',      value: '#dcd7c8' },
+];
+
+// CSS class strings for Font Awesome (free 6.x) and RPG Awesome.
+// Both webfonts are loaded globally from index.html.
+export const ANNOTATION_ICONS: { name: string; cls: string }[] = [
+  { name: 'Star',          cls: 'fas fa-star' },
+  { name: 'Flag',          cls: 'fas fa-flag' },
+  { name: 'Bookmark',      cls: 'fas fa-bookmark' },
+  { name: 'Eye',           cls: 'fas fa-eye' },
+  { name: 'House',         cls: 'fas fa-house' },
+  { name: 'Tree',          cls: 'fas fa-tree' },
+  { name: 'Mountain',      cls: 'fas fa-mountain' },
+  { name: 'Fire',          cls: 'fas fa-fire' },
+  { name: 'Anchor',        cls: 'fas fa-anchor' },
+  { name: 'Ship',          cls: 'fas fa-ship' },
+  { name: 'Sword',         cls: 'ra ra-sword' },
+  { name: 'Shield',        cls: 'ra ra-shield' },
+  { name: 'Crossed swords',cls: 'ra ra-crossed-swords' },
+  { name: 'Castle flag',   cls: 'ra ra-castle-flag' },
+  { name: 'Tower',         cls: 'ra ra-tower' },
+  { name: 'Helmet',        cls: 'ra ra-helmet' },
+  { name: 'Scroll',        cls: 'ra ra-scroll-unfurled' },
+  { name: 'Skull',         cls: 'ra ra-skull' },
+  { name: 'Chest',         cls: 'ra ra-chest' },
+  { name: 'Archer',        cls: 'ra ra-archer' },
+  { name: 'Axe',           cls: 'ra ra-axe' },
+  { name: 'Dragon',        cls: 'ra ra-dragon' },
 ];
 
 @Injectable({ providedIn: 'root' })
@@ -43,7 +76,11 @@ export class AnnotationsStorage {
     }
   }
 
-  add(world: string, lngLat: { lng: number; lat: number }, title: string, body: string, color?: string): Annotation {
+  add(world: string, lngLat: { lng: number; lat: number }, title: string, body: string, color?: string, icon?: string): Annotation {
+    return this.addFeature(world, { type: 'Point', coordinates: [lngLat.lng, lngLat.lat] }, title, body, color, icon);
+  }
+
+  addFeature(world: string, geometry: AnnotationGeometry, title: string, body: string, color?: string, icon?: string): Annotation {
     const list = this.getAll(world);
     const a: Annotation = {
       id: this.uuid(),
@@ -51,15 +88,16 @@ export class AnnotationsStorage {
       title: (title && title.trim()) || 'Untitled',
       body: body || '',
       color: color || undefined,
+      icon: icon || undefined,
       created: new Date().toISOString(),
-      geometry: { type: 'Point', coordinates: [lngLat.lng, lngLat.lat] },
+      geometry,
     };
     list.push(a);
     localStorage.setItem(this.key(world), JSON.stringify(list));
     return a;
   }
 
-  update(world: string, id: string, patch: Partial<Pick<Annotation, 'title' | 'body' | 'color'>>): Annotation | null {
+  update(world: string, id: string, patch: Partial<Pick<Annotation, 'title' | 'body' | 'color' | 'icon'>>): Annotation | null {
     const list = this.getAll(world);
     const i = list.findIndex(x => x.id === id);
     if (i < 0) return null;
@@ -68,6 +106,7 @@ export class AnnotationsStorage {
       ...patch,
       title: patch.title !== undefined ? ((patch.title.trim()) || 'Untitled') : list[i].title,
       color: patch.color !== undefined ? (patch.color || undefined) : list[i].color,
+      icon: patch.icon !== undefined ? (patch.icon || undefined) : list[i].icon,
       updated: new Date().toISOString(),
     };
     list[i] = next;
@@ -88,12 +127,21 @@ export class AnnotationsStorage {
     const existingIds = new Set(list.map(a => a.id));
     let added = 0, skipped = 0;
     for (const f of fc.features) {
-      if (!f || f.type !== 'Feature' || !f.geometry || f.geometry.type !== 'Point') {
+      if (!f || f.type !== 'Feature' || !f.geometry) {
         skipped++;
         continue;
       }
-      const coords = f.geometry.coordinates;
-      if (!Array.isArray(coords) || coords.length < 2 || typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
+      const g = f.geometry;
+      let geometry: AnnotationGeometry | null = null;
+      if (g.type === 'Point' && Array.isArray(g.coordinates) && g.coordinates.length >= 2 &&
+          typeof g.coordinates[0] === 'number' && typeof g.coordinates[1] === 'number') {
+        geometry = { type: 'Point', coordinates: [g.coordinates[0], g.coordinates[1]] };
+      } else if (g.type === 'LineString' && Array.isArray(g.coordinates) && g.coordinates.length >= 2) {
+        geometry = { type: 'LineString', coordinates: g.coordinates as [number, number][] };
+      } else if (g.type === 'Polygon' && Array.isArray(g.coordinates) && g.coordinates.length >= 1) {
+        geometry = { type: 'Polygon', coordinates: g.coordinates as [number, number][][] };
+      }
+      if (!geometry) {
         skipped++;
         continue;
       }
@@ -106,8 +154,9 @@ export class AnnotationsStorage {
         title: (props.title || props.name || 'Imported').toString(),
         body: (props.body || props.description || '').toString(),
         color: typeof props.color === 'string' ? props.color : undefined,
+        icon: typeof props.icon === 'string' ? props.icon : undefined,
         created: typeof props.created === 'string' ? props.created : new Date().toISOString(),
-        geometry: { type: 'Point', coordinates: [coords[0], coords[1]] },
+        geometry,
       };
       list.push(a);
       existingIds.add(id);
@@ -128,6 +177,7 @@ export class AnnotationsStorage {
           title: a.title,
           body: a.body,
           ...(a.color ? { color: a.color } : {}),
+          ...(a.icon ? { icon: a.icon } : {}),
           created: a.created,
         },
         geometry: a.geometry,

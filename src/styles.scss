@@ -275,6 +275,45 @@ a[matListItem],
 .vis-current-time { background: var(--ofm-accent); }
 .vis-text { color: var(--ofm-text-muted); }
 
+// ─────────── Annotation markers (DOM-mounted by MapLibre) ───────────
+// MapLibre attaches Marker elements directly into the map container, so
+// component-scoped styles don't reach them. Style them globally.
+.ann-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--ofm-surface);
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.35);
+  transition: transform var(--ofm-dur-1) var(--ofm-ease),
+              box-shadow var(--ofm-dur-1) var(--ofm-ease);
+
+  i { line-height: 1; }
+
+  &:hover {
+    transform: scale(1.12);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.5);
+  }
+}
+
+.ann-marker--dot {
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  border-color: rgba(245, 240, 230, 0.95);
+  box-shadow: 0 0 0 1px oklch(0 0 0 / 0.4);
+
+  &:hover { transform: scale(1.2); }
+}
+
 // Material Icons font ships through the global link; ensure ligature rendering
 .material-icons, .mat-icon {
   font-feature-settings: "liga";

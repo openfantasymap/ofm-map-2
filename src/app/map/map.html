@@ -95,8 +95,34 @@
 
         <div class="annot-actions">
             <mat-slide-toggle [checked]="annotationsVisible()" (toggleChange)="toggleAnnotationsVisible()">Show on map</mat-slide-toggle>
-            <mat-slide-toggle [checked]="annotating()" (toggleChange)="toggleAnnotate()">Annotate mode</mat-slide-toggle>
-            <p class="annot-hint mark">{{ annotating() ? 'Click on the map to drop a marker' : 'Toggle Annotate, then click the map' }}</p>
+            <div class="annot-modes">
+                <button mat-stroked-button [class.is-active]="annotating()" (click)="setPlacementMode(annotating() ? null : 'point')">
+                    <mat-icon>place</mat-icon> Point
+                </button>
+                <button mat-stroked-button [class.is-active]="drawingMode() === 'line'" (click)="setPlacementMode(drawingMode() === 'line' ? null : 'line')">
+                    <mat-icon>timeline</mat-icon> Line
+                </button>
+                <button mat-stroked-button [class.is-active]="drawingMode() === 'polygon'" (click)="setPlacementMode(drawingMode() === 'polygon' ? null : 'polygon')">
+                    <mat-icon>crop_square</mat-icon> Polygon
+                </button>
+            </div>
+            @if (drawingMode()) {
+                <div class="annot-draw-actions">
+                    <button mat-button (click)="undoLastPoint()"><mat-icon>undo</mat-icon> Undo</button>
+                    <button mat-button (click)="cancelDrawing()"><mat-icon>close</mat-icon> Cancel</button>
+                </div>
+            }
+            <p class="annot-hint mark">
+                @if (annotating()) {
+                    Click on the map to drop a marker
+                } @else if (drawingMode() === 'line') {
+                    Click to add points · double-click to finish
+                } @else if (drawingMode() === 'polygon') {
+                    Click vertices · double-click to close
+                } @else {
+                    Pick a tool, then click the map
+                }
+            </p>
         </div>
 
         @if (annotations().length === 0) {
@@ -105,7 +131,13 @@
             <div class="annot-list">
                 @for (a of annotations(); track a.id) {
                     <div class="annot-row">
-                        <button mat-icon-button (click)="locateAnnotation(a)" aria-label="Locate on map"><mat-icon>location_on</mat-icon></button>
+                        <button mat-icon-button (click)="locateAnnotation(a)" [attr.aria-label]="'Locate ' + a.geometry.type">
+                            @if (a.icon && a.geometry.type === 'Point') {
+                                <i class="annot-row__glyph" [class]="a.icon" [style.color]="a.color || null"></i>
+                            } @else {
+                                <mat-icon>{{ geometryGlyph(a) }}</mat-icon>
+                            }
+                        </button>
                         <div class="annot-body">
                             <div class="annot-title">{{ a.title }}</div>
                             @if (a.body) { <div class="annot-snippet">{{ a.body }}</div> }

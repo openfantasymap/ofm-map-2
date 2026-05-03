@@ -1,15 +1,18 @@
 <h2 mat-dialog-title>{{ data.mode === 'edit' ? 'Edit annotation' : 'New annotation' }}</h2>
 <mat-dialog-content>
-  @if (data.lat !== undefined && data.lng !== undefined) {
-    <p class="coords">{{ data.lat.toFixed(4) }}, {{ data.lng.toFixed(4) }}</p>
-  }
+  <p class="coords">
+    {{ geometryLabel() }}
+    @if (data.lat !== undefined && data.lng !== undefined) {
+      &middot; {{ data.lat.toFixed(4) }}, {{ data.lng.toFixed(4) }}
+    }
+  </p>
   <mat-form-field class="wide">
     <mat-label>Title</mat-label>
     <input matInput name="ann-title" [(ngModel)]="title" cdkFocusInitial />
   </mat-form-field>
   <mat-form-field class="wide">
     <mat-label>Note</mat-label>
-    <textarea matInput name="ann-body" rows="5" [(ngModel)]="body"></textarea>
+    <textarea matInput name="ann-body" rows="4" [(ngModel)]="body"></textarea>
   </mat-form-field>
 
   <div class="palette">
@@ -26,6 +29,32 @@
       }
     </div>
   </div>
+
+  @if (data.geometryType === 'Point' || data.geometryType === undefined) {
+    <div class="palette icons">
+      <p class="palette__label">Icon</p>
+      <div class="palette__swatches icons__grid">
+        <button type="button"
+                class="icon-btn"
+                [class.is-selected]="icon === ''"
+                title="No icon"
+                (click)="selectIcon('')">
+          <span class="icon-btn__none">·</span>
+        </button>
+        @for (i of icons; track i.cls) {
+          <button type="button"
+                  class="icon-btn"
+                  [class.is-selected]="icon === i.cls"
+                  [style.color]="color || null"
+                  [attr.aria-label]="i.name"
+                  [title]="i.name"
+                  (click)="selectIcon(i.cls)">
+            <i [class]="i.cls"></i>
+          </button>
+        }
+      </div>
+    </div>
+  }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   @if (data.mode === 'edit') {

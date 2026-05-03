@@ -15,6 +15,7 @@
 
 .palette {
   margin-top: var(--space-xs);
+  margin-bottom: var(--space-sm);
 
   &__label {
     margin: 0 0 var(--space-2xs);
@@ -45,5 +46,46 @@
   &:hover { transform: scale(1.08); }
   &.is-selected {
     box-shadow: 0 0 0 2px var(--ofm-surface), 0 0 0 4px var(--ofm-text);
+  }
+}
+
+.icons__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: var(--space-2xs);
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ofm-surface-raised);
+  border: 1px solid var(--ofm-border);
+  border-radius: var(--ofm-radius-sm);
+  color: var(--ofm-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform var(--ofm-dur-1) var(--ofm-ease),
+              border-color var(--ofm-dur-1) var(--ofm-ease),
+              box-shadow var(--ofm-dur-1) var(--ofm-ease);
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: var(--ofm-text-muted);
+  }
+  &.is-selected {
+    border-color: var(--ofm-accent);
+    box-shadow: 0 0 0 2px var(--ofm-accent-wash);
+  }
+
+  i { line-height: 1; }
+  &__none {
+    font-size: 22px;
+    line-height: 0;
+    color: var(--ofm-text-faint);
   }
 }

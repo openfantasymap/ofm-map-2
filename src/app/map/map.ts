@@ -21,7 +21,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Response } from '../gaia/response/response';
 import { InputDialog } from '../gaia/input/input';
 import { GaiaStorage } from '../gaia-storage';
-import { AnnotationsStorage, Annotation } from '../annotations-storage';
+import { AnnotationsStorage, Annotation, AnnotationGeometry } from '../annotations-storage';
 import { AnnotationDialog } from '../annotation-dialog/annotation-dialog';
 import { ViewsStorage, SavedView } from '../views-storage';
 import { FormsModule } from '@angular/forms';
@@ -342,12 +342,19 @@ drawWedge(){
   gaialist = signal<any[]>([]);
 
   // ─── Annotations ───
-  annotating = signal(false);
+  annotating = signal(false);                                    // point placement mode
+  drawingMode = signal<'line' | 'polygon' | null>(null);         // shape drawing mode
   annotationsVisible = signal(true);
   annotations = signal<Annotation[]>([]);
   ANNOT_SOURCE_ID = 'annotations';
-  ANNOT_LAYER_ID = 'annotations_layer';
-  ANNOT_LABEL_ID = 'annotations_label';
+  ANNOT_LINE_LAYER_ID = 'annotations_lines';
+  ANNOT_FILL_LAYER_ID = 'annotations_fills';
+  ANNOT_DRAFT_SOURCE_ID = 'annotations_draft';
+  ANNOT_DRAFT_LINE_LAYER_ID = 'annotations_draft_line';
+  ANNOT_DRAFT_FILL_LAYER_ID = 'annotations_draft_fill';
+  ANNOT_DRAFT_POINTS_LAYER_ID = 'annotations_draft_points';
+  private annotMarkers = new Map<string, any>();                 // id → maplibregl.Marker
+  private drawingCoords: [number, number][] = [];
 
   // ─── Saved views ───
   views = signal<SavedView[]>([]);
@@ -618,75 +625,273 @@ toggleGaiaAgentsLayer(){
   // ─── Annotations ──────────────────────────────────────────────────────
   registerAnnotationLayers() {
     const world = this.ar.snapshot.params['timeline'];
+
+    // Persisted features — only LineString and Polygon render as map layers.
+    // Points are rendered as DOM markers so we can use any web font glyph.
     this.map.addSource(this.ANNOT_SOURCE_ID, {
       type: 'geojson',
       data: this.annot.getFeatureCollection(world),
     });
 
     this.map.addLayer({
-      id: this.ANNOT_LAYER_ID,
-      type: 'circle',
+      id: this.ANNOT_FILL_LAYER_ID,
+      type: 'fill',
       source: this.ANNOT_SOURCE_ID,
       paint: {
-        'circle-radius': 6,
-        'circle-color': ['coalesce', ['get', 'color'], '#c44632'],
-        'circle-opacity': 0.9,
-        'circle-stroke-color': 'rgba(245, 240, 230, 0.95)',
-        'circle-stroke-width': 1.5,
+        'fill-color': ['coalesce', ['get', 'color'], '#c44632'],
+        'fill-opacity': 0.22,
       },
+      filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
     });
 
     this.map.addLayer({
-      id: this.ANNOT_LABEL_ID,
-      type: 'symbol',
+      id: this.ANNOT_LINE_LAYER_ID,
+      type: 'line',
       source: this.ANNOT_SOURCE_ID,
-      layout: {
-        'text-field': ['get', 'title'],
-        'text-size': 11,
-        'text-offset': [0, 1.2],
-        'text-anchor': 'top',
-        'text-allow-overlap': false,
-      },
       paint: {
-        'text-color': 'rgba(245, 240, 230, 0.95)',
-        'text-halo-color': 'rgba(0, 0, 0, 0.6)',
-        'text-halo-width': 1,
+        'line-color': ['coalesce', ['get', 'color'], '#c44632'],
+        'line-width': 2.5,
+        'line-opacity': 0.9,
       },
+      filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'], true, false],
     });
 
-    this.map.on('click', this.ANNOT_LAYER_ID, (e: any) => {
+    // Drafts (in-progress drawing) — separate source so we can clear without
+    // touching persisted features.
+    this.map.addSource(this.ANNOT_DRAFT_SOURCE_ID, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+
+    this.map.addLayer({
+      id: this.ANNOT_DRAFT_FILL_LAYER_ID,
+      type: 'fill',
+      source: this.ANNOT_DRAFT_SOURCE_ID,
+      paint: { 'fill-color': '#c44632', 'fill-opacity': 0.18 },
+      filter: ['match', ['geometry-type'], ['Polygon'], true, false],
+    });
+    this.map.addLayer({
+      id: this.ANNOT_DRAFT_LINE_LAYER_ID,
+      type: 'line',
+      source: this.ANNOT_DRAFT_SOURCE_ID,
+      paint: {
+        'line-color': '#c44632',
+        'line-width': 2,
+        'line-dasharray': [2, 2],
+      },
+      filter: ['match', ['geometry-type'], ['LineString', 'Polygon'], true, false],
+    });
+    this.map.addLayer({
+      id: this.ANNOT_DRAFT_POINTS_LAYER_ID,
+      type: 'circle',
+      source: this.ANNOT_DRAFT_SOURCE_ID,
+      paint: {
+        'circle-radius': 4,
+        'circle-color': '#c44632',
+        'circle-stroke-color': 'rgba(245, 240, 230, 0.95)',
+        'circle-stroke-width': 1,
+      },
+      filter: ['match', ['geometry-type'], ['Point'], true, false],
+    });
+
+    // Click on persisted line/fill → edit
+    const editFromLayer = (e: any) => {
       const f = e.features?.[0];
       if (!f) return;
       this.editAnnotation(f.properties.id);
-    });
+    };
+    this.map.on('click', this.ANNOT_LINE_LAYER_ID, editFromLayer);
+    this.map.on('click', this.ANNOT_FILL_LAYER_ID, editFromLayer);
 
-    this.map.on('mouseenter', this.ANNOT_LAYER_ID, () => {
-      this.map.getCanvas().style.cursor = 'pointer';
-    });
-    this.map.on('mouseleave', this.ANNOT_LAYER_ID, () => {
-      this.map.getCanvas().style.cursor = this.annotating() ? 'crosshair' : '';
-    });
+    const setPointer = () => { this.map.getCanvas().style.cursor = 'pointer'; };
+    const clearPointer = () => { this.map.getCanvas().style.cursor = this.cursorForCurrentMode(); };
+    this.map.on('mouseenter', this.ANNOT_LINE_LAYER_ID, setPointer);
+    this.map.on('mouseleave', this.ANNOT_LINE_LAYER_ID, clearPointer);
+    this.map.on('mouseenter', this.ANNOT_FILL_LAYER_ID, setPointer);
+    this.map.on('mouseleave', this.ANNOT_FILL_LAYER_ID, clearPointer);
 
+    // Single click handler: drawing mode wins, then point placement.
     this.map.on('click', (e: any) => {
-      if (!this.annotating()) return;
       if (this.measuring || this.drawing) return;
-      const hits = this.map.queryRenderedFeatures(e.point, { layers: [this.ANNOT_LAYER_ID] });
+
+      const draw = this.drawingMode();
+      if (draw) {
+        this.drawingCoords.push([e.lngLat.lng, e.lngLat.lat]);
+        this.updateDraftPreview();
+        return;
+      }
+
+      if (!this.annotating()) return;
+      // Skip if click hit a persisted line/fill annotation (handled by their layer events).
+      const hits = this.map.queryRenderedFeatures(e.point, {
+        layers: [this.ANNOT_LINE_LAYER_ID, this.ANNOT_FILL_LAYER_ID].filter(id => this.map.getLayer(id)),
+      });
       if (hits.length) return;
       this.placeAnnotation(e.lngLat);
     });
+
+    // Double-click finishes the in-progress shape.
+    this.map.on('dblclick', (e: any) => {
+      const draw = this.drawingMode();
+      if (!draw) return;
+      e.preventDefault?.();
+      this.completeDrawing();
+    });
+
+    // Spawn DOM markers for persisted points.
+    this.rebuildPointMarkers();
   }
 
-  toggleAnnotate() {
-    const next = !this.annotating();
-    this.annotating.set(next);
-    if (!this.map) return;
-    this.map.getCanvas().style.cursor = next ? 'crosshair' : '';
-    if (next && !this.annotationsVisible()) {
-      // No point placing markers you can't see.
-      this.annotationsVisible.set(true);
-      this.setAnnotationVisibility(true);
-      this.bringAnnotationsToTop();
+  cursorForCurrentMode(): string {
+    if (this.drawingMode() || this.annotating()) return 'crosshair';
+    return '';
+  }
+
+  private rebuildPointMarkers() {
+    for (const m of this.annotMarkers.values()) m.remove();
+    this.annotMarkers.clear();
+
+    const list = this.annotations();
+    for (const a of list) {
+      if (a.geometry?.type !== 'Point') continue;
+      const el = this.buildMarkerElement(a);
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(a.geometry.coordinates as [number, number])
+        .addTo(this.map);
+      this.annotMarkers.set(a.id, marker);
     }
+  }
+
+  private buildMarkerElement(a: Annotation): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'ann-marker';
+    el.title = a.title;
+    el.style.color = a.color || '#c44632';
+    if (a.icon) {
+      const i = document.createElement('i');
+      i.className = a.icon;
+      el.appendChild(i);
+    } else {
+      el.classList.add('ann-marker--dot');
+    }
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      this.editAnnotation(a.id);
+    });
+    if (!this.annotationsVisible()) el.style.display = 'none';
+    return el;
+  }
+
+  // ─── Drawing tool ─────────────────────────────────────────────────────
+  setPlacementMode(mode: 'point' | 'line' | 'polygon' | null) {
+    // Cancel anything in progress.
+    if (this.drawingMode()) {
+      this.drawingCoords = [];
+      this.updateDraftPreview();
+    }
+    this.annotating.set(false);
+    this.drawingMode.set(null);
+
+    if (mode === 'point') {
+      this.annotating.set(true);
+      if (!this.annotationsVisible()) {
+        this.annotationsVisible.set(true);
+        this.setAnnotationVisibility(true);
+        this.bringAnnotationsToTop();
+      }
+    } else if (mode === 'line' || mode === 'polygon') {
+      this.drawingMode.set(mode);
+      if (!this.annotationsVisible()) {
+        this.annotationsVisible.set(true);
+        this.setAnnotationVisibility(true);
+        this.bringAnnotationsToTop();
+      }
+    }
+
+    if (this.map) this.map.getCanvas().style.cursor = this.cursorForCurrentMode();
+  }
+
+  cancelDrawing() {
+    this.setPlacementMode(null);
+  }
+
+  undoLastPoint() {
+    if (!this.drawingMode()) return;
+    this.drawingCoords.pop();
+    this.updateDraftPreview();
+  }
+
+  private updateDraftPreview() {
+    if (!this.map) return;
+    const src = this.map.getSource(this.ANNOT_DRAFT_SOURCE_ID);
+    if (!src) return;
+
+    const mode = this.drawingMode();
+    const features: any[] = [];
+    if (mode && this.drawingCoords.length > 0) {
+      // Vertex dots for clarity
+      for (const c of this.drawingCoords) {
+        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: c }, properties: {} });
+      }
+      if (mode === 'line' && this.drawingCoords.length >= 2) {
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: this.drawingCoords },
+          properties: {},
+        });
+      } else if (mode === 'polygon' && this.drawingCoords.length >= 2) {
+        const ring = this.drawingCoords.length >= 3
+          ? [...this.drawingCoords, this.drawingCoords[0]]
+          : this.drawingCoords;
+        features.push({
+          type: 'Feature',
+          geometry: this.drawingCoords.length >= 3
+            ? { type: 'Polygon', coordinates: [ring] }
+            : { type: 'LineString', coordinates: ring },
+          properties: {},
+        });
+      }
+    }
+    src.setData({ type: 'FeatureCollection', features });
+  }
+
+  private completeDrawing() {
+    const mode = this.drawingMode();
+    if (!mode) return;
+    if (mode === 'line' && this.drawingCoords.length < 2) return;
+    if (mode === 'polygon' && this.drawingCoords.length < 3) return;
+
+    const geometry: AnnotationGeometry = mode === 'line'
+      ? { type: 'LineString', coordinates: [...this.drawingCoords] }
+      : { type: 'Polygon', coordinates: [[...this.drawingCoords, this.drawingCoords[0]]] };
+
+    let ref;
+    try {
+      ref = this.md.open(AnnotationDialog, {
+        data: {
+          mode: 'create',
+          geometryType: geometry.type,
+          title: '',
+          body: '',
+          lat: this.drawingCoords[0][1],
+          lng: this.drawingCoords[0][0],
+        },
+        width: '420px',
+      });
+    } catch (err: any) {
+      console.error('Annotation dialog open failed', err);
+      this._snackBar.open(`Dialog error: ${err?.message ?? err}`, 'Close', { duration: 5000 });
+      this.setPlacementMode(null);
+      return;
+    }
+    ref.afterClosed().subscribe((res: any) => {
+      if (res && !res.delete) {
+        const world = this.ar.snapshot.params['timeline'];
+        this.annot.addFeature(world, geometry, res.title, res.body, res.color, res.icon);
+        this.refreshAnnotations();
+      }
+      this.setPlacementMode(null);
+    });
   }
 
   toggleAnnotationsVisible() {
@@ -696,44 +901,45 @@ toggleGaiaAgentsLayer(){
     this.setAnnotationVisibility(next);
     if (next) {
       this.bringAnnotationsToTop();
-    } else if (this.annotating()) {
-      // Hiding the layer while in annotate mode is contradictory — exit it.
-      this.annotating.set(false);
-      this.map.getCanvas().style.cursor = '';
+    } else if (this.annotating() || this.drawingMode()) {
+      // Hiding the layer while drawing/placing is contradictory — exit it.
+      this.setPlacementMode(null);
     }
   }
 
   private setAnnotationVisibility(visible: boolean) {
     const v = visible ? 'visible' : 'none';
-    if (this.map.getLayer(this.ANNOT_LAYER_ID)) this.map.setLayoutProperty(this.ANNOT_LAYER_ID, 'visibility', v);
-    if (this.map.getLayer(this.ANNOT_LABEL_ID)) this.map.setLayoutProperty(this.ANNOT_LABEL_ID, 'visibility', v);
+    for (const id of [this.ANNOT_FILL_LAYER_ID, this.ANNOT_LINE_LAYER_ID]) {
+      if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', v);
+    }
+    // DOM markers are independent of layer visibility — toggle them via display.
+    for (const m of this.annotMarkers.values()) {
+      const el = m.getElement();
+      if (el) el.style.display = visible ? '' : 'none';
+    }
   }
 
   bringAnnotationsToTop() {
     if (!this.map) return;
     // moveLayer(id) with no beforeId puts the layer at the top of the stack.
-    // Move circles first, then labels, so labels end up above their markers.
-    if (this.map.getLayer(this.ANNOT_LAYER_ID)) this.map.moveLayer(this.ANNOT_LAYER_ID);
-    if (this.map.getLayer(this.ANNOT_LABEL_ID)) this.map.moveLayer(this.ANNOT_LABEL_ID);
+    // Fills first, then lines, so polygon outlines stay readable over fills.
+    // DOM markers are positioned absolutely above the canvas, always on top.
+    if (this.map.getLayer(this.ANNOT_FILL_LAYER_ID)) this.map.moveLayer(this.ANNOT_FILL_LAYER_ID);
+    if (this.map.getLayer(this.ANNOT_LINE_LAYER_ID)) this.map.moveLayer(this.ANNOT_LINE_LAYER_ID);
+    if (this.map.getLayer(this.ANNOT_DRAFT_FILL_LAYER_ID)) this.map.moveLayer(this.ANNOT_DRAFT_FILL_LAYER_ID);
+    if (this.map.getLayer(this.ANNOT_DRAFT_LINE_LAYER_ID)) this.map.moveLayer(this.ANNOT_DRAFT_LINE_LAYER_ID);
+    if (this.map.getLayer(this.ANNOT_DRAFT_POINTS_LAYER_ID)) this.map.moveLayer(this.ANNOT_DRAFT_POINTS_LAYER_ID);
   }
 
   placeAnnotation(lngLat: { lng: number; lat: number }) {
-    console.log('[annotations] placeAnnotation', lngLat);
-    let ref;
-    try {
-      ref = this.md.open(AnnotationDialog, {
-        data: { mode: 'create', title: '', body: '', lat: lngLat.lat, lng: lngLat.lng },
-        width: '420px',
-      });
-    } catch (err: any) {
-      console.error('Annotation dialog open failed', err);
-      this._snackBar.open(`Dialog error: ${err?.message ?? err}`, 'Close', { duration: 5000 });
-      return;
-    }
+    const ref = this.md.open(AnnotationDialog, {
+      data: { mode: 'create', geometryType: 'Point', title: '', body: '', lat: lngLat.lat, lng: lngLat.lng },
+      width: '420px',
+    });
     ref.afterClosed().subscribe((res: any) => {
-      if (!res) return;
+      if (!res || res.delete) return;
       const world = this.ar.snapshot.params['timeline'];
-      this.annot.add(world, lngLat, res.title, res.body, res.color);
+      this.annot.add(world, lngLat, res.title, res.body, res.color, res.icon);
       this.refreshAnnotations();
     });
   }
@@ -742,33 +948,35 @@ toggleGaiaAgentsLayer(){
     const world = this.ar.snapshot.params['timeline'];
     const a = this.annot.getAll(world).find(x => x.id === id);
     if (!a) return;
-    let ref;
-    try {
-      ref = this.md.open(AnnotationDialog, {
-        data: {
-          mode: 'edit',
-          title: a.title,
-          body: a.body,
-          color: a.color,
-          lat: a.geometry.coordinates[1],
-          lng: a.geometry.coordinates[0],
-        },
-        width: '420px',
-      });
-    } catch (err: any) {
-      console.error('Annotation dialog open failed', err);
-      this._snackBar.open(`Dialog error: ${err?.message ?? err}`, 'Close', { duration: 5000 });
-      return;
-    }
+    const seed = this.geometrySeedCoords(a.geometry);
+    const ref = this.md.open(AnnotationDialog, {
+      data: {
+        mode: 'edit',
+        geometryType: a.geometry.type,
+        title: a.title,
+        body: a.body,
+        color: a.color,
+        icon: a.icon,
+        lat: seed[1],
+        lng: seed[0],
+      },
+      width: '420px',
+    });
     ref.afterClosed().subscribe((res: any) => {
       if (!res) return;
       if (res.delete) {
         this.annot.delete(world, id);
       } else {
-        this.annot.update(world, id, { title: res.title, body: res.body, color: res.color });
+        this.annot.update(world, id, { title: res.title, body: res.body, color: res.color, icon: res.icon });
       }
       this.refreshAnnotations();
     });
+  }
+
+  private geometrySeedCoords(g: AnnotationGeometry): [number, number] {
+    if (g.type === 'Point') return g.coordinates;
+    if (g.type === 'LineString') return g.coordinates[0];
+    return g.coordinates[0][0];
   }
 
   deleteAnnotation(id: string) {
@@ -778,7 +986,7 @@ toggleGaiaAgentsLayer(){
   }
 
   locateAnnotation(a: Annotation) {
-    const c = a.geometry.coordinates;
+    const c = this.geometrySeedCoords(a.geometry);
     this.map.flyTo({ center: c, zoom: Math.max(this.map.getZoom(), 8) });
   }
 
@@ -836,7 +1044,15 @@ toggleGaiaAgentsLayer(){
     this.annotations.set(this.annot.getAll(world));
     const src = this.map?.getSource(this.ANNOT_SOURCE_ID);
     if (src) src.setData(this.annot.getFeatureCollection(world));
+    this.rebuildPointMarkers();
     this.cdr.markForCheck();
+  }
+
+  // Sidebar list helpers
+  geometryGlyph(a: Annotation): string {
+    if (a.geometry?.type === 'LineString') return 'timeline';
+    if (a.geometry?.type === 'Polygon') return 'crop_square';
+    return 'location_on';
   }
 
   // ─── Saved views ─────────────────────────────────────────────────────
