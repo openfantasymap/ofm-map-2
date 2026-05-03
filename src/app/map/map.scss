@@ -218,6 +218,8 @@ mat-sidenav-container {
 
   mat-slide-toggle { display: block; }
 
+  .view-label-field { width: 100%; }
+
   .annot-hint {
     margin: var(--space-2xs) 0 0;
     color: var(--ofm-text-muted);
@@ -245,6 +247,15 @@ mat-sidenav-container {
   transition: background var(--ofm-dur-1) var(--ofm-ease);
 
   &:hover { background: var(--ofm-surface-raised); }
+
+  .annot-swatch {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    margin: 0 var(--space-2xs);
+    border-radius: 50%;
+    border: 1px solid var(--ofm-border);
+  }
 
   .annot-body {
     flex: 1 1 auto;

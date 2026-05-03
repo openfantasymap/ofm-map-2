@@ -11,6 +11,21 @@
     <mat-label>Note</mat-label>
     <textarea matInput rows="5" [(ngModel)]="body"></textarea>
   </mat-form-field>
+
+  <div class="palette">
+    <p class="palette__label">Color</p>
+    <div class="palette__swatches">
+      @for (c of palette; track c.value) {
+        <button type="button"
+                class="swatch"
+                [class.is-selected]="color() === c.value"
+                [style.background]="c.value"
+                [attr.aria-label]="c.name"
+                [title]="c.name"
+                (click)="selectColor(c.value)"></button>
+      }
+    </div>
+  </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   @if (data.mode === 'edit') {

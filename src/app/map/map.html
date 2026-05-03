@@ -4,6 +4,8 @@
     <span class="spacer"></span>
     <a href="https://www.patreon.com/openfantasymap" target="_blank" rel="noopener" title="Help us keep this project alive" aria-label="Support on Patreon" mat-icon-button><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png" alt=""></mat-icon></a>
     <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" rel="noopener" title="Use this and other OFM maps on FoundryVTT" aria-label="Open on FoundryVTT" mat-icon-button><mat-icon><img src="/assets/images/fvtt-solid-512.png" alt=""></mat-icon></a>
+    <button mat-icon-button aria-label="Saved views" (click)="ractive.set('views'); rbar.open()" class="hidesmall" title="Saved views"><mat-icon>bookmark</mat-icon></button>
+    <button mat-icon-button aria-label="Imported overlays" (click)="ractive.set('overlays'); rbar.open()" class="hidesmall" title="Overlays"><mat-icon>layers</mat-icon></button>
     <button mat-icon-button aria-label="Annotate this map" (click)="ractive.set('annotations'); rbar.open()" class="hidesmall"><mat-icon>edit_location_alt</mat-icon></button>
     <button mat-icon-button aria-label="Share this view" (click)="ractive.set('share'); rbar.toggle()" class="hidesmall"><mat-icon>share</mat-icon></button>
     <button mat-button aria-label="GaiaWM context" (click)="ractive.set('gaia'); rbar.toggle()" class="hidesmall gaiabar">
@@ -82,9 +84,11 @@
         </mat-list>
     }
     @if(ractive() === 'annotations'){
+        <input type="file" #annotImportInput accept=".geojson,application/geo+json,application/json" hidden (change)="$any($event.target).files?.[0] && importAnnotationsFromFile($any($event.target).files[0]); annotImportInput.value = ''">
         <mat-toolbar>
             <h1>Annotations</h1>
             <span class="spacer"></span>
+            <button mat-icon-button aria-label="Import GeoJSON" (click)="annotImportInput.click()" title="Import GeoJSON"><mat-icon>file_upload</mat-icon></button>
             <button mat-icon-button aria-label="Export as GeoJSON" (click)="exportAnnotations()" title="Export as GeoJSON"><mat-icon>file_download</mat-icon></button>
             <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
         </mat-toolbar>
@@ -113,6 +117,69 @@
             </div>
         }
     }
+    @if(ractive() === 'views'){
+        <mat-toolbar>
+            <h1>Saved views</h1>
+            <span class="spacer"></span>
+            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
+        </mat-toolbar>
+
+        <div class="annot-actions">
+            <mat-form-field appearance="outline" class="view-label-field">
+                <mat-label>Label (optional)</mat-label>
+                <input matInput [(ngModel)]="viewLabelDraft" placeholder="e.g. Castle approach" />
+            </mat-form-field>
+            <button mat-flat-button color="primary" (click)="saveCurrentView()">Save current view</button>
+            <p class="annot-hint mark">Captures position, zoom and date.</p>
+        </div>
+
+        @if (views().length === 0) {
+            <p class="annot-empty">No saved views on this world yet.</p>
+        } @else {
+            <div class="annot-list">
+                @for (v of views(); track v.id) {
+                    <div class="annot-row">
+                        <button mat-icon-button (click)="gotoView(v)" aria-label="Fly to view"><mat-icon>flight_takeoff</mat-icon></button>
+                        <div class="annot-body">
+                            <div class="annot-title">{{ v.label }}</div>
+                            <div class="annot-snippet">z{{ v.zoom | number:'1.1-1' }} · {{ v.lat | number:'1.2-2' }}, {{ v.lng | number:'1.2-2' }} · {{ v.date | number:'1.0-2' }}</div>
+                        </div>
+                        <button mat-icon-button (click)="deleteView(v.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                    </div>
+                }
+            </div>
+        }
+    }
+    @if(ractive() === 'overlays'){
+        <input type="file" #overlayInput accept=".geojson,application/geo+json,application/json" hidden multiple (change)="$any($event.target).files && importOverlaysFromInput($event); overlayInput.value = ''">
+        <mat-toolbar>
+            <h1>Overlays</h1>
+            <span class="spacer"></span>
+            <button mat-icon-button aria-label="Add GeoJSON" (click)="overlayInput.click()" title="Add GeoJSON"><mat-icon>file_upload</mat-icon></button>
+            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
+        </mat-toolbar>
+
+        <div class="annot-actions">
+            <p class="annot-hint mark">Drop a .geojson on the map, or use the upload icon. Session-only.</p>
+        </div>
+
+        @if (overlays().length === 0) {
+            <p class="annot-empty">No overlays loaded.</p>
+        } @else {
+            <div class="annot-list">
+                @for (o of overlays(); track o.id) {
+                    <div class="annot-row">
+                        <span class="annot-swatch" [style.background]="o.color"></span>
+                        <div class="annot-body">
+                            <div class="annot-title">{{ o.name }}</div>
+                            <div class="annot-snippet">{{ o.featureCount }} feature{{ o.featureCount === 1 ? '' : 's' }}</div>
+                        </div>
+                        <button mat-icon-button (click)="removeOverlay(o.id)" aria-label="Remove"><mat-icon>delete</mat-icon></button>
+                    </div>
+                }
+            </div>
+        }
+    }
     @if(ractive() === 'events'){
 
         <mat-toolbar>
@@ -132,7 +199,7 @@
             <button mat-menu-item (click)="setSpeed(500)">High</button>
         -->
         </mat-menu>
-        <div class="row">
+        <div class="row" (dragover)="onMapDragOver($event)" (drop)="onMapDrop($event)">
             <div id="ohm_map"></div>
             <button class="gaiawm" aria-label="GaiaWM Watcher" (click)="drawWedge()" title="GaiaWM Watcher"></button>
             <div *ngIf="ofm_meta" id="ofm_attribution" [innerHTML]="ofm_meta.copyright"></div>

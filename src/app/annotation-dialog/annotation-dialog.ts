@@ -4,11 +4,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { ANNOTATION_PALETTE } from '../annotations-storage';
 
 export interface AnnotationDialogData {
   mode: 'create' | 'edit';
   title?: string;
   body?: string;
+  color?: string;
   lng?: number;
   lat?: number;
 }
@@ -16,6 +18,7 @@ export interface AnnotationDialogData {
 export interface AnnotationDialogResult {
   title?: string;
   body?: string;
+  color?: string;
   delete?: boolean;
 }
 
@@ -31,9 +34,15 @@ export class AnnotationDialog {
   readonly data = inject<AnnotationDialogData>(MAT_DIALOG_DATA);
   readonly title = model(this.data.title ?? '');
   readonly body = model(this.data.body ?? '');
+  readonly color = model(this.data.color ?? '');
+  readonly palette = ANNOTATION_PALETTE;
+
+  selectColor(value: string): void {
+    this.color.set(this.color() === value ? '' : value);
+  }
 
   save(): void {
-    this.dialogRef.close({ title: this.title(), body: this.body() });
+    this.dialogRef.close({ title: this.title(), body: this.body(), color: this.color() });
   }
 
   cancel(): void {

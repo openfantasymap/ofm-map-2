@@ -12,3 +12,38 @@
   text-transform: uppercase;
   color: var(--ofm-text-faint);
 }
+
+.palette {
+  margin-top: var(--space-xs);
+
+  &__label {
+    margin: 0 0 var(--space-2xs);
+    font-family: var(--ofm-font-mono);
+    font-size: var(--ofm-size-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ofm-text-faint);
+  }
+
+  &__swatches {
+    display: flex;
+    gap: var(--space-2xs);
+    flex-wrap: wrap;
+  }
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--ofm-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform var(--ofm-dur-1) var(--ofm-ease),
+              box-shadow var(--ofm-dur-1) var(--ofm-ease);
+
+  &:hover { transform: scale(1.08); }
+  &.is-selected {
+    box-shadow: 0 0 0 2px var(--ofm-surface), 0 0 0 4px var(--ofm-text);
+  }
+}

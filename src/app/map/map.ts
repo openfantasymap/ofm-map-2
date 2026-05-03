@@ -23,6 +23,10 @@ import { InputDialog } from '../gaia/input/input';
 import { GaiaStorage } from '../gaia-storage';
 import { AnnotationsStorage, Annotation } from '../annotations-storage';
 import { AnnotationDialog } from '../annotation-dialog/annotation-dialog';
+import { ViewsStorage, SavedView } from '../views-storage';
+import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import {MatSlideToggleModule} from '@angular/material/slide-toggle';
 import {MatExpansionModule} from '@angular/material/expansion';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
@@ -55,7 +59,8 @@ export class DeckPipe implements PipeTransform{
     MatButtonModule,
     DecimaldatePipe, DatePipe, 
     MatSlideToggleModule,MatExpansionModule,MatProgressSpinnerModule,
-    ShareDirective, NicedatePipe, DeckPipe
+    ShareDirective, NicedatePipe, DeckPipe,
+    FormsModule, MatFormFieldModule, MatInputModule
 
   ],
   templateUrl: './map.html',
@@ -342,6 +347,15 @@ drawWedge(){
   ANNOT_LAYER_ID = 'annotations_layer';
   ANNOT_LABEL_ID = 'annotations_label';
 
+  // ─── Saved views ───
+  views = signal<SavedView[]>([]);
+  viewLabelDraft = '';
+
+  // ─── Imported overlays (session only) ───
+  overlays = signal<{ id: string; name: string; color: string; sourceId: string; layerIds: string[]; featureCount: number }[]>([]);
+  private overlayPalette = ['#c44632', '#c49232', '#469c8c', '#5064c3', '#965a96', '#dcd7c8'];
+  private overlayPaletteIdx = 0;
+
   constructor(
     private ar: ActivatedRoute,
     private l: Location,
@@ -354,12 +368,14 @@ drawWedge(){
     private capture: NgxCaptureService,
     private cdr: ChangeDetectorRef,
     private gs: GaiaStorage,
-    private annot: AnnotationsStorage
+    private annot: AnnotationsStorage,
+    private viewsStore: ViewsStorage
   ) {
     this.startstopicons.set('stop', 'play_arrow');
     this.startstopicons.set('play', 'stop');
     this.gaialist.set(gs.getPastQueries(ar.snapshot.params['timeline']));
     this.annotations.set(annot.getAll(ar.snapshot.params['timeline']));
+    this.views.set(viewsStore.getAll(ar.snapshot.params['timeline']));
   }
 
   ngOnDestroy(): void {
@@ -600,7 +616,8 @@ toggleGaiaAgentsLayer(){
       source: this.ANNOT_SOURCE_ID,
       paint: {
         'circle-radius': 6,
-        'circle-color': 'rgba(196, 70, 50, 0.85)',
+        'circle-color': ['coalesce', ['get', 'color'], '#c44632'],
+        'circle-opacity': 0.9,
         'circle-stroke-color': 'rgba(245, 240, 230, 0.95)',
         'circle-stroke-width': 1.5,
       },
@@ -695,7 +712,7 @@ toggleGaiaAgentsLayer(){
     ref.afterClosed().subscribe((res: any) => {
       if (!res) return;
       const world = this.ar.snapshot.params['timeline'];
-      this.annot.add(world, lngLat, res.title, res.body);
+      this.annot.add(world, lngLat, res.title, res.body, res.color);
       this.refreshAnnotations();
     });
   }
@@ -709,6 +726,7 @@ toggleGaiaAgentsLayer(){
         mode: 'edit',
         title: a.title,
         body: a.body,
+        color: a.color,
         lat: a.geometry.coordinates[1],
         lng: a.geometry.coordinates[0],
       },
@@ -719,7 +737,7 @@ toggleGaiaAgentsLayer(){
       if (res.delete) {
         this.annot.delete(world, id);
       } else {
-        this.annot.update(world, id, { title: res.title, body: res.body });
+        this.annot.update(world, id, { title: res.title, body: res.body, color: res.color });
       }
       this.refreshAnnotations();
     });
@@ -734,6 +752,31 @@ toggleGaiaAgentsLayer(){
   locateAnnotation(a: Annotation) {
     const c = a.geometry.coordinates;
     this.map.flyTo({ center: c, zoom: Math.max(this.map.getZoom(), 8) });
+  }
+
+  importAnnotationsFromFile(file: File) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      let fc: any;
+      try {
+        fc = JSON.parse(text);
+      } catch {
+        this._snackBar.open('Could not parse file as JSON.', 'Close', { duration: 2000 });
+        return;
+      }
+      const world = this.ar.snapshot.params['timeline'];
+      const { added, skipped } = this.annot.importFeatureCollection(world, fc);
+      if (added === 0 && skipped === 0) {
+        this._snackBar.open('No FeatureCollection of points found.', 'Close', { duration: 2500 });
+        return;
+      }
+      this.refreshAnnotations();
+      const msg = `Imported ${added} annotation${added === 1 ? '' : 's'}` + (skipped ? ` (${skipped} skipped)` : '');
+      this._snackBar.open(msg, 'Close', { duration: 2500 });
+    };
+    reader.readAsText(file);
   }
 
   exportAnnotations() {
@@ -760,6 +803,161 @@ toggleGaiaAgentsLayer(){
     const src = this.map?.getSource(this.ANNOT_SOURCE_ID);
     if (src) src.setData(this.annot.getFeatureCollection(world));
     this.cdr.markForCheck();
+  }
+
+  // ─── Saved views ─────────────────────────────────────────────────────
+  saveCurrentView() {
+    if (!this.map) return;
+    const world = this.ar.snapshot.params['timeline'];
+    const c = this.map.getCenter();
+    this.viewsStore.add(world, {
+      label: this.viewLabelDraft,
+      lat: c.lat,
+      lng: c.lng,
+      zoom: this.map.getZoom(),
+      date: parseFloat(this.atDate.toString()),
+    });
+    this.viewLabelDraft = '';
+    this.views.set(this.viewsStore.getAll(world));
+    this.cdr.markForCheck();
+  }
+
+  gotoView(v: SavedView) {
+    this.atDate = v.date;
+    this.timeline?.setCustomTime(this.toFloatDate(this.atDate), 'atTime');
+    this.map.flyTo({ center: [v.lng, v.lat], zoom: v.zoom });
+    this.changeUrl(this.atDate.toString());
+  }
+
+  deleteView(id: string) {
+    const world = this.ar.snapshot.params['timeline'];
+    this.viewsStore.delete(world, id);
+    this.views.set(this.viewsStore.getAll(world));
+    this.cdr.markForCheck();
+  }
+
+  // ─── Imported overlays ───────────────────────────────────────────────
+  importOverlaysFromInput(ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    if (!input?.files) return;
+    Array.from(input.files).forEach(f => this.importOverlayFromFile(f));
+  }
+
+  importOverlayFromFile(file: File) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      let fc: any;
+      try {
+        fc = JSON.parse(text);
+      } catch {
+        this._snackBar.open('Could not parse file as JSON.', 'Close', { duration: 2000 });
+        return;
+      }
+      this.addOverlay(file.name.replace(/\.[^.]+$/, ''), fc);
+    };
+    reader.readAsText(file);
+  }
+
+  private addOverlay(name: string, fc: any) {
+    if (!fc || (fc.type !== 'FeatureCollection' && fc.type !== 'Feature')) {
+      this._snackBar.open('Not a valid GeoJSON FeatureCollection.', 'Close', { duration: 2500 });
+      return;
+    }
+    const data = fc.type === 'Feature' ? { type: 'FeatureCollection', features: [fc] } : fc;
+    const features = Array.isArray(data.features) ? data.features : [];
+    if (!features.length) {
+      this._snackBar.open('GeoJSON contained no features.', 'Close', { duration: 2000 });
+      return;
+    }
+    const id = this.uuid();
+    const sourceId = `overlay-${id}`;
+    const color = this.overlayPalette[this.overlayPaletteIdx % this.overlayPalette.length];
+    this.overlayPaletteIdx++;
+
+    this.map.addSource(sourceId, { type: 'geojson', data });
+
+    const fillId = `${sourceId}-fill`;
+    const lineId = `${sourceId}-line`;
+    const pointId = `${sourceId}-point`;
+
+    this.map.addLayer({
+      id: fillId,
+      type: 'fill',
+      source: sourceId,
+      paint: { 'fill-color': color, 'fill-opacity': 0.25 },
+      filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
+    });
+    this.map.addLayer({
+      id: lineId,
+      type: 'line',
+      source: sourceId,
+      paint: { 'line-color': color, 'line-width': 2, 'line-opacity': 0.85 },
+      filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'], true, false],
+    });
+    this.map.addLayer({
+      id: pointId,
+      type: 'circle',
+      source: sourceId,
+      paint: {
+        'circle-radius': 5,
+        'circle-color': color,
+        'circle-opacity': 0.9,
+        'circle-stroke-color': 'rgba(245, 240, 230, 0.95)',
+        'circle-stroke-width': 1,
+      },
+      filter: ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false],
+    });
+
+    this.overlays.update(list => [
+      ...list,
+      { id, name, color, sourceId, layerIds: [fillId, lineId, pointId], featureCount: features.length },
+    ]);
+
+    // Bring annotations back to the top so the overlay doesn't bury them.
+    this.bringAnnotationsToTop();
+
+    this._snackBar.open(`Added "${name}" — ${features.length} feature${features.length === 1 ? '' : 's'}`, 'Close', { duration: 2500 });
+    this.cdr.markForCheck();
+  }
+
+  removeOverlay(id: string) {
+    const o = this.overlays().find(x => x.id === id);
+    if (!o) return;
+    for (const lid of o.layerIds) {
+      if (this.map.getLayer(lid)) this.map.removeLayer(lid);
+    }
+    if (this.map.getSource(o.sourceId)) this.map.removeSource(o.sourceId);
+    this.overlays.update(list => list.filter(x => x.id !== id));
+    this.cdr.markForCheck();
+  }
+
+  onMapDragOver(ev: DragEvent) {
+    if (!ev.dataTransfer) return;
+    if (Array.from(ev.dataTransfer.items || []).some(i => i.kind === 'file')) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  onMapDrop(ev: DragEvent) {
+    if (!ev.dataTransfer) return;
+    const files = Array.from(ev.dataTransfer.files || []);
+    const geo = files.filter(f => /\.(geo)?json$/i.test(f.name) || f.type === 'application/geo+json' || f.type === 'application/json');
+    if (!files.length) return;
+    ev.preventDefault();
+    if (!geo.length) {
+      this._snackBar.open('Only .geojson / .json files are supported.', 'Close', { duration: 2000 });
+      return;
+    }
+    for (const f of geo) this.importOverlayFromFile(f);
+  }
+
+  private uuid(): string {
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
   }
 
   panTo(coords: { lat: number; lng: number; } | { lat: number; lon: number; } | [number, number]) {
