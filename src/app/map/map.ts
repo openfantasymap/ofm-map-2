@@ -531,7 +531,7 @@ drawWedge(){
       })
 
 
-      for (let layer of this.ofm_meta.clickLayers) {
+      for (let layer of (this.ofm_meta?.clickLayers ?? [])) {
         this.map.on('click', layer, (e:any) => {
           this.hideAll();
           this.p = e.features[0].properties;
@@ -581,8 +581,17 @@ drawWedge(){
         filter: ['in', '$type', 'LineString']
       });
 
-      this.registerAnnotationLayers();
+    });
 
+    // Annotations get their own load handler so a throw in the gaia/clickLayers
+    // setup above can never leave them un-wired (which would silently disable
+    // both the markers and the place-on-click handler).
+    this.map.on('load', () => {
+      try {
+        this.registerAnnotationLayers();
+      } catch (err) {
+        console.error('[annotations] registerAnnotationLayers failed', err);
+      }
     });
 
 
