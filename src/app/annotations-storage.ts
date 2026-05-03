@@ -26,33 +26,6 @@ export const ANNOTATION_PALETTE: { name: string; value: string }[] = [
   { name: 'Bone',      value: '#dcd7c8' },
 ];
 
-// CSS class strings for Font Awesome (free 6.x) and RPG Awesome.
-// Both webfonts are loaded globally from index.html.
-export const ANNOTATION_ICONS: { name: string; cls: string }[] = [
-  { name: 'Star',          cls: 'fas fa-star' },
-  { name: 'Flag',          cls: 'fas fa-flag' },
-  { name: 'Bookmark',      cls: 'fas fa-bookmark' },
-  { name: 'Eye',           cls: 'fas fa-eye' },
-  { name: 'House',         cls: 'fas fa-house' },
-  { name: 'Tree',          cls: 'fas fa-tree' },
-  { name: 'Mountain',      cls: 'fas fa-mountain' },
-  { name: 'Fire',          cls: 'fas fa-fire' },
-  { name: 'Anchor',        cls: 'fas fa-anchor' },
-  { name: 'Ship',          cls: 'fas fa-ship' },
-  { name: 'Sword',         cls: 'ra ra-sword' },
-  { name: 'Shield',        cls: 'ra ra-shield' },
-  { name: 'Crossed swords',cls: 'ra ra-crossed-swords' },
-  { name: 'Castle flag',   cls: 'ra ra-castle-flag' },
-  { name: 'Tower',         cls: 'ra ra-tower' },
-  { name: 'Helmet',        cls: 'ra ra-helmet' },
-  { name: 'Scroll',        cls: 'ra ra-scroll-unfurled' },
-  { name: 'Skull',         cls: 'ra ra-skull' },
-  { name: 'Chest',         cls: 'ra ra-chest' },
-  { name: 'Archer',        cls: 'ra ra-archer' },
-  { name: 'Axe',           cls: 'ra ra-axe' },
-  { name: 'Dragon',        cls: 'ra ra-dragon' },
-];
-
 @Injectable({ providedIn: 'root' })
 export class AnnotationsStorage {
   private key(world: string): string {

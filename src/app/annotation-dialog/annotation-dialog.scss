@@ -49,10 +49,43 @@
   }
 }
 
-.icons__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
-  gap: var(--space-2xs);
+.icons {
+  margin-top: var(--space-xs);
+
+  &__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-xs);
+    margin-bottom: var(--space-2xs);
+  }
+
+  &__category, &__filter { width: 100%; }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: var(--space-2xs);
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--space-2xs);
+    border: 1px solid var(--ofm-border-faint);
+    border-radius: var(--ofm-radius-sm);
+    background: var(--ofm-surface);
+
+    // Hairline scrollbar in keeping with editorial chrome.
+    scrollbar-width: thin;
+    scrollbar-color: var(--ofm-border) transparent;
+  }
+
+  &__empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: var(--space-md);
+    font-family: var(--ofm-font-display);
+    font-style: italic;
+    color: var(--ofm-text-muted);
+    text-align: center;
+  }
 }
 
 .icon-btn {
