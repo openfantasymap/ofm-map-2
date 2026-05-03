@@ -86,7 +86,9 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
 
   start = {
     center: [1.57, 43.67],
-    zoom: 3.5
+    zoom: 3.5,
+    pitch: 0,
+    bearing: 0,
   };
 
   rels: any;
@@ -395,6 +397,8 @@ drawWedge(){
       style: 'https://static.fantasymaps.org/' + this.ar.snapshot.params['timeline'] + '/map.json', // stylesheet location
       center: this.start.center, // starting position [lng, lat]
       zoom: this.start.zoom, // starting zoom
+      bearing: this.start.bearing,
+      pitch: this.start.pitch,
       maxZoom:25,
       projection: 'equirectangular',
       maxPitch: 85,
@@ -754,6 +758,12 @@ toggleGaiaAgentsLayer(){
     this.map.flyTo({ center: c, zoom: Math.max(this.map.getZoom(), 8) });
   }
 
+  onAnnotationImportInput(ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (file) this.importAnnotationsFromFile(file);
+  }
+
   importAnnotationsFromFile(file: File) {
     if (!file) return;
     const reader = new FileReader();
@@ -816,6 +826,8 @@ toggleGaiaAgentsLayer(){
       lng: c.lng,
       zoom: this.map.getZoom(),
       date: parseFloat(this.atDate.toString()),
+      pitch: this.map.getPitch(),
+      bearing: this.map.getBearing(),
     });
     this.viewLabelDraft = '';
     this.views.set(this.viewsStore.getAll(world));
@@ -825,7 +837,12 @@ toggleGaiaAgentsLayer(){
   gotoView(v: SavedView) {
     this.atDate = v.date;
     this.timeline?.setCustomTime(this.toFloatDate(this.atDate), 'atTime');
-    this.map.flyTo({ center: [v.lng, v.lat], zoom: v.zoom });
+    this.map.flyTo({
+      center: [v.lng, v.lat],
+      zoom: v.zoom,
+      pitch: v.pitch ?? 0,
+      bearing: v.bearing ?? 0,
+    });
     this.changeUrl(this.atDate.toString());
   }
 
@@ -972,6 +989,8 @@ toggleGaiaAgentsLayer(){
     this.atDate = this.ar.snapshot.params['year'];
     this.start.center = [this.ar.snapshot.params['x'], this.ar.snapshot.params['y']];
     this.start.zoom = this.ar.snapshot.params['z'];
+    this.start.pitch = parseFloat(this.ar.snapshot.params['pitch'] ?? '0') || 0;
+    this.start.bearing = parseFloat(this.ar.snapshot.params['bearing'] ?? '0') || 0;
     this.rels = this.ar.snapshot.params['rels'];
     this.layers = {};
 
@@ -993,6 +1012,8 @@ toggleGaiaAgentsLayer(){
       this.atDate = params['year'];
       this.start.center = [params['x'], params['y']];
       this.start.zoom = params['z'];
+      this.start.pitch = parseFloat(params['pitch'] ?? '0') || 0;
+      this.start.bearing = parseFloat(params['bearing'] ?? '0') || 0;
       this.tl = params['timeline'];
       if (this.map) {
         this.map.panTo(this.start.center);
@@ -1021,7 +1042,9 @@ toggleGaiaAgentsLayer(){
 
   changeUrl(ev:(string|null) = null): void {
     const c = this.map.getCenter();
-    this.l.go(`/${this.tl}/${this.atDate}/${this.map.getZoom()}/${c.lat}/${c.lng}` + (this.rels ? '/' + this.rels : ''));
+    const p = this.map.getPitch();
+    const b = this.map.getBearing();
+    this.l.go(`/${this.tl}/${this.atDate}/${this.map.getZoom()}/${c.lat}/${c.lng}/${p}/${b}` + (this.rels ? '/' + this.rels : ''));
     if (ev) {
       for (let tm of this.ofm_meta.timed) {
         const s = this.map.getSource(tm.source);
@@ -1265,12 +1288,14 @@ toggleGaiaAgentsLayer(){
   }
 
   goTimeSpace(time: number, space: any): void {
-    this.l.go(`${this.tl}/${time}/${this.map.getZoom()}/${space.coordinates[0]}/${space.coordinates[1]}` + (this.rels ? '/' + this.rels : ''));
+    const p = this.map.getPitch();
+    const b = this.map.getBearing();
+    this.l.go(`${this.tl}/${time}/${this.map.getZoom()}/${space.coordinates[0]}/${space.coordinates[1]}/${p}/${b}` + (this.rels ? '/' + this.rels : ''));
   }
 
   warpTo(time: number, timeline: string, zoom: number = 2, space: any = [0, 0]): void {
     setTimeout(() => {
-      this.l.go(`/${timeline}/${time}/${zoom}/${space[0]}/${space[1]}/` + (this.rels ? '/' + this.rels : ''));
+      this.l.go(`/${timeline}/${time}/${zoom}/${space[0]}/${space[1]}/0/0` + (this.rels ? '/' + this.rels : ''));
       window.location.reload();
     }, 100);
   }

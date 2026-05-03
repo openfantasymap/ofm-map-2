@@ -8,6 +8,8 @@ export interface SavedView {
   lng: number;
   zoom: number;
   date: number;
+  pitch?: number;
+  bearing?: number;
   created: string;
 }
 
@@ -34,7 +36,7 @@ export class ViewsStorage {
     }
   }
 
-  add(world: string, view: { label: string; lat: number; lng: number; zoom: number; date: number }): SavedView {
+  add(world: string, view: { label: string; lat: number; lng: number; zoom: number; date: number; pitch?: number; bearing?: number }): SavedView {
     const list = this.getAll(world);
     const v: SavedView = {
       id: this.uuid(),
@@ -44,6 +46,8 @@ export class ViewsStorage {
       lng: view.lng,
       zoom: view.zoom,
       date: view.date,
+      pitch: view.pitch,
+      bearing: view.bearing,
       created: new Date().toISOString(),
     };
     list.push(v);

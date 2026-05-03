@@ -84,7 +84,7 @@
         </mat-list>
     }
     @if(ractive() === 'annotations'){
-        <input type="file" #annotImportInput accept=".geojson,application/geo+json,application/json" hidden (change)="$any($event.target).files?.[0] && importAnnotationsFromFile($any($event.target).files[0]); annotImportInput.value = ''">
+        <input type="file" #annotImportInput accept=".geojson,application/geo+json,application/json" hidden (change)="onAnnotationImportInput($event); annotImportInput.value = ''">
         <mat-toolbar>
             <h1>Annotations</h1>
             <span class="spacer"></span>
@@ -151,7 +151,7 @@
         }
     }
     @if(ractive() === 'overlays'){
-        <input type="file" #overlayInput accept=".geojson,application/geo+json,application/json" hidden multiple (change)="$any($event.target).files && importOverlaysFromInput($event); overlayInput.value = ''">
+        <input type="file" #overlayInput accept=".geojson,application/geo+json,application/json" hidden multiple (change)="importOverlaysFromInput($event); overlayInput.value = ''">
         <mat-toolbar>
             <h1>Overlays</h1>
             <span class="spacer"></span>
