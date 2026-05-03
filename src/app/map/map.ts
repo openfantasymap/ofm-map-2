@@ -650,7 +650,16 @@ toggleGaiaAgentsLayer(){
     this.annotating.set(next);
     if (this.map) {
       this.map.getCanvas().style.cursor = next ? 'crosshair' : '';
+      if (next) this.bringAnnotationsToTop();
     }
+  }
+
+  bringAnnotationsToTop() {
+    if (!this.map) return;
+    // moveLayer(id) with no beforeId puts the layer at the top of the stack.
+    // Move circles first, then labels, so labels end up above their markers.
+    if (this.map.getLayer(this.ANNOT_LAYER_ID)) this.map.moveLayer(this.ANNOT_LAYER_ID);
+    if (this.map.getLayer(this.ANNOT_LABEL_ID)) this.map.moveLayer(this.ANNOT_LABEL_ID);
   }
 
   placeAnnotation(lngLat: { lng: number; lat: number }) {
