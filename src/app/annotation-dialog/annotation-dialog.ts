@@ -1,4 +1,4 @@
-import { Component, inject, model } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -30,19 +30,21 @@ export interface AnnotationDialogResult {
   styleUrl: './annotation-dialog.scss',
 })
 export class AnnotationDialog {
-  readonly dialogRef = inject(MatDialogRef<AnnotationDialog, AnnotationDialogResult | null>);
+  readonly dialogRef = inject(MatDialogRef);
   readonly data = inject<AnnotationDialogData>(MAT_DIALOG_DATA);
-  readonly title = model(this.data.title ?? '');
-  readonly body = model(this.data.body ?? '');
-  readonly color = model(this.data.color ?? '');
   readonly palette = ANNOTATION_PALETTE;
 
+  title: string = this.data.title ?? '';
+  body: string = this.data.body ?? '';
+  color: string = this.data.color ?? '';
+
   selectColor(value: string): void {
-    this.color.set(this.color() === value ? '' : value);
+    this.color = this.color === value ? '' : value;
   }
 
   save(): void {
-    this.dialogRef.close({ title: this.title(), body: this.body(), color: this.color() });
+    const result: AnnotationDialogResult = { title: this.title, body: this.body, color: this.color };
+    this.dialogRef.close(result);
   }
 
   cancel(): void {
@@ -50,6 +52,7 @@ export class AnnotationDialog {
   }
 
   remove(): void {
-    this.dialogRef.close({ delete: true });
+    const result: AnnotationDialogResult = { delete: true };
+    this.dialogRef.close(result);
   }
 }

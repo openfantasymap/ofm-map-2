@@ -5,11 +5,11 @@
   }
   <mat-form-field class="wide">
     <mat-label>Title</mat-label>
-    <input matInput [(ngModel)]="title" cdkFocusInitial />
+    <input matInput name="ann-title" [(ngModel)]="title" cdkFocusInitial />
   </mat-form-field>
   <mat-form-field class="wide">
     <mat-label>Note</mat-label>
-    <textarea matInput rows="5" [(ngModel)]="body"></textarea>
+    <textarea matInput name="ann-body" rows="5" [(ngModel)]="body"></textarea>
   </mat-form-field>
 
   <div class="palette">
@@ -18,7 +18,7 @@
       @for (c of palette; track c.value) {
         <button type="button"
                 class="swatch"
-                [class.is-selected]="color() === c.value"
+                [class.is-selected]="color === c.value"
                 [style.background]="c.value"
                 [attr.aria-label]="c.name"
                 [title]="c.name"
@@ -29,8 +29,8 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   @if (data.mode === 'edit') {
-    <button matButton color="warn" (click)="remove()">Delete</button>
+    <button mat-button color="warn" (click)="remove()">Delete</button>
   }
-  <button matButton (click)="cancel()">Cancel</button>
-  <button matButton color="primary" (click)="save()">Save</button>
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" (click)="save()">Save</button>
 </mat-dialog-actions>

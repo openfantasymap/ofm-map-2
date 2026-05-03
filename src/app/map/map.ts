@@ -709,10 +709,18 @@ toggleGaiaAgentsLayer(){
   }
 
   placeAnnotation(lngLat: { lng: number; lat: number }) {
-    const ref = this.md.open(AnnotationDialog, {
-      data: { mode: 'create', title: '', body: '', lat: lngLat.lat, lng: lngLat.lng },
-      width: '420px',
-    });
+    console.log('[annotations] placeAnnotation', lngLat);
+    let ref;
+    try {
+      ref = this.md.open(AnnotationDialog, {
+        data: { mode: 'create', title: '', body: '', lat: lngLat.lat, lng: lngLat.lng },
+        width: '420px',
+      });
+    } catch (err: any) {
+      console.error('Annotation dialog open failed', err);
+      this._snackBar.open(`Dialog error: ${err?.message ?? err}`, 'Close', { duration: 5000 });
+      return;
+    }
     ref.afterClosed().subscribe((res: any) => {
       if (!res) return;
       const world = this.ar.snapshot.params['timeline'];
@@ -725,17 +733,24 @@ toggleGaiaAgentsLayer(){
     const world = this.ar.snapshot.params['timeline'];
     const a = this.annot.getAll(world).find(x => x.id === id);
     if (!a) return;
-    const ref = this.md.open(AnnotationDialog, {
-      data: {
-        mode: 'edit',
-        title: a.title,
-        body: a.body,
-        color: a.color,
-        lat: a.geometry.coordinates[1],
-        lng: a.geometry.coordinates[0],
-      },
-      width: '420px',
-    });
+    let ref;
+    try {
+      ref = this.md.open(AnnotationDialog, {
+        data: {
+          mode: 'edit',
+          title: a.title,
+          body: a.body,
+          color: a.color,
+          lat: a.geometry.coordinates[1],
+          lng: a.geometry.coordinates[0],
+        },
+        width: '420px',
+      });
+    } catch (err: any) {
+      console.error('Annotation dialog open failed', err);
+      this._snackBar.open(`Dialog error: ${err?.message ?? err}`, 'Close', { duration: 5000 });
+      return;
+    }
     ref.afterClosed().subscribe((res: any) => {
       if (!res) return;
       if (res.delete) {
