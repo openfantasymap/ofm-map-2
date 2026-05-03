@@ -14,7 +14,7 @@
 
 </mat-toolbar>
 
-<mat-sidenav-container class="example-container">
+<mat-sidenav-container class="example-container" [hasBackdrop]="!(ractive() === 'annotations' && annotating())">
     <mat-sidenav class="sidebar" mode="over" #lbar position="start">
         <div *ngIf="infoData" class="info" [innerHtml]="infoData?.info"></div>
 
@@ -39,7 +39,7 @@
             </div>
         </mat-nav-list>
     </mat-sidenav>
-    <mat-sidenav class="sidebar" mode="over" #rbar position="end" [hasBackdrop]="!(ractive() === 'annotations' && annotating())">
+    <mat-sidenav class="sidebar" mode="over" #rbar position="end">
         @if(ractive() === 'gaia'){
         <mat-toolbar>
             <h1>GaiaWM Context</h1>
