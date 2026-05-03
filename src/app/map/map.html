@@ -90,8 +90,9 @@
         </mat-toolbar>
 
         <div class="annot-actions">
+            <mat-slide-toggle [checked]="annotationsVisible()" (toggleChange)="toggleAnnotationsVisible()">Show on map</mat-slide-toggle>
             <mat-slide-toggle [checked]="annotating()" (toggleChange)="toggleAnnotate()">Annotate mode</mat-slide-toggle>
-            <p class="annot-hint mark">{{ annotating() ? 'Click on the map to drop a marker' : 'Toggle on, then click the map' }}</p>
+            <p class="annot-hint mark">{{ annotating() ? 'Click on the map to drop a marker' : 'Toggle Annotate, then click the map' }}</p>
         </div>
 
         @if (annotations().length === 0) {

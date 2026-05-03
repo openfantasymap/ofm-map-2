@@ -212,9 +212,14 @@ mat-sidenav-container {
 .annot-actions {
   padding: var(--space-md);
   border-bottom: 1px solid var(--ofm-border-faint);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+
+  mat-slide-toggle { display: block; }
 
   .annot-hint {
-    margin: var(--space-xs) 0 0;
+    margin: var(--space-2xs) 0 0;
     color: var(--ofm-text-muted);
   }
 }

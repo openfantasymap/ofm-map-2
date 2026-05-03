@@ -336,6 +336,7 @@ drawWedge(){
 
   // ─── Annotations ───
   annotating = signal(false);
+  annotationsVisible = signal(true);
   annotations = signal<Annotation[]>([]);
   ANNOT_SOURCE_ID = 'annotations';
   ANNOT_LAYER_ID = 'annotations_layer';
@@ -648,10 +649,34 @@ toggleGaiaAgentsLayer(){
   toggleAnnotate() {
     const next = !this.annotating();
     this.annotating.set(next);
-    if (this.map) {
-      this.map.getCanvas().style.cursor = next ? 'crosshair' : '';
-      if (next) this.bringAnnotationsToTop();
+    if (!this.map) return;
+    this.map.getCanvas().style.cursor = next ? 'crosshair' : '';
+    if (next && !this.annotationsVisible()) {
+      // No point placing markers you can't see.
+      this.annotationsVisible.set(true);
+      this.setAnnotationVisibility(true);
+      this.bringAnnotationsToTop();
     }
+  }
+
+  toggleAnnotationsVisible() {
+    const next = !this.annotationsVisible();
+    this.annotationsVisible.set(next);
+    if (!this.map) return;
+    this.setAnnotationVisibility(next);
+    if (next) {
+      this.bringAnnotationsToTop();
+    } else if (this.annotating()) {
+      // Hiding the layer while in annotate mode is contradictory — exit it.
+      this.annotating.set(false);
+      this.map.getCanvas().style.cursor = '';
+    }
+  }
+
+  private setAnnotationVisibility(visible: boolean) {
+    const v = visible ? 'visible' : 'none';
+    if (this.map.getLayer(this.ANNOT_LAYER_ID)) this.map.setLayoutProperty(this.ANNOT_LAYER_ID, 'visibility', v);
+    if (this.map.getLayer(this.ANNOT_LABEL_ID)) this.map.setLayoutProperty(this.ANNOT_LABEL_ID, 'visibility', v);
   }
 
   bringAnnotationsToTop() {
