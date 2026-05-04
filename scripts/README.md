@@ -56,3 +56,39 @@ To wire the renders into the world-picker grid, the live `timelines.json`
 already supports per-tile `bg`/`bgimg`. Upload the rendered JPGs to a static
 host (e.g. `static.fantasymaps.org/tiles/`) and set each timeline's `bgimg`
 to `url('https://static.fantasymaps.org/tiles/<slug>.jpg')`.
+
+### Docker (recommended)
+
+A `Dockerfile` next to this README builds on
+[`ghcr.io/puppeteer/puppeteer`](https://pptr.dev/guides/docker), so Chromium
+and the matching Puppeteer version are baked in — no host npm install, no
+GLIBC version dance.
+
+```bash
+# Build once (~1 GB, mostly Chromium).
+docker build -t ofm-tile-renderer ./scripts
+
+# Render every world to ./tile-renders
+mkdir -p tile-renders
+docker run --rm --init --shm-size=2g \
+  -v "$(pwd)/tile-renders:/out" \
+  ofm-tile-renderer
+```
+
+Pass any of the script's flags after the image name:
+
+```bash
+docker run --rm --init --shm-size=2g \
+  -v "$(pwd)/tile-renders:/out" \
+  ofm-tile-renderer --only=toril,krynn --size=1024 --skip-existing
+```
+
+`--shm-size=2g` is the only Docker-side flag that matters: Chrome's default
+64 MB `/dev/shm` is too small for complex map renders and triggers
+`Target closed` errors mid-batch.
+
+The container runs as root so the bind-mounted output directory is
+writable; Chromium runs with `--no-sandbox` (already in the script) which
+makes that safe in headless mode. If you'd rather not have root-owned
+files on the host, append `--user "$(id -u):$(id -g)"` to the run command
+and ensure `tile-renders/` is writable by your uid first.
