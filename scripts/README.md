@@ -32,11 +32,17 @@ node render-world-tiles.mjs
 #   --jpeg-quality=86
 ```
 
-The script waits for MapLibre's `idle` event via `window.__ofmMap` (which
-`map.ts` publishes on init), falling back to a plain sleep if the hook
-isn't there. Do NOT pass `waitUntil: networkidle2` to Puppeteer — the OFM
-map polls the gaia agents endpoint every 5 s, so the network never goes
-idle and Puppeteer hangs until the navigation timeout fires.
+The script uses `waitUntil: 'domcontentloaded'` on `page.goto`, then waits
+for `#ohm_map .maplibregl-canvas`, then for MapLibre's `idle` event via
+`window.__ofmMap` (which `map.ts` publishes on init). It falls back to a
+plain sleep if the hook isn't there.
+
+Why not `'load'` or `'networkidle2'`?
+
+- `'load'` waits for every initial sub-resource — a single slow GeoJSON
+  stalls the whole `goto` and you hit the navigation timeout.
+- `'networkidle2'` never fires: the OFM map polls the gaia `/agents`
+  endpoint every 5 s, so the network is never quiet for 500 ms straight.
 
 ### Common variations
 

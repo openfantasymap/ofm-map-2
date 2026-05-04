@@ -105,10 +105,12 @@ for (const tl of timelines) {
 
   process.stdout.write(`→ ${slug}\n  ${url}\n`);
   try {
-    // 'load' fires on window.load. We deliberately do NOT use networkidle*
-    // because the OFM map polls the gaia /agents endpoint every 5 s, so the
-    // network never goes idle and the wait would hang until the timeout.
-    await page.goto(url, { waitUntil: 'load' });
+    // 'domcontentloaded' returns once HTML is parsed; we then wait for the
+    // MapLibre canvas and its 'idle' event explicitly. Don't use 'load' or
+    // 'networkidle*' — 'load' waits for every initial sub-resource (one
+    // slow GeoJSON stalls the whole goto), and the OFM map's 5 s gaia
+    // polling means the network is never idle.
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#ohm_map .maplibregl-canvas', { timeout: TIMEOUT });
 
     // Strip chrome and force the map element to fill the viewport for a
