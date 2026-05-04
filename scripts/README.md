@@ -23,7 +23,7 @@ npm install                # downloads Chromium (~150 MB)
 ```bash
 node render-world-tiles.mjs
 # defaults:
-#   --base=https://map.openfantasymap.org
+#   --base=https://map.fantasymaps.org   (the live OFM viewer)
 #   --out=../tile-renders
 #   --size=720
 #   --idle-wait=20000   max ms to wait for MapLibre 'idle'

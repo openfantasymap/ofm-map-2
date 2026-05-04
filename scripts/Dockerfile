@@ -23,5 +23,6 @@ RUN npm install --no-audit --no-fund
 
 COPY render-world-tiles.mjs ./
 
-ENTRYPOINT ["node", "render-world-tiles.mjs"]
-CMD ["--out=/out"]
+# --out is baked into ENTRYPOINT so it can't be stripped when the user passes
+# additional flags (Docker replaces CMD when args are given to `docker run`).
+ENTRYPOINT ["node", "render-world-tiles.mjs", "--out=/out"]

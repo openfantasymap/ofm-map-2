@@ -34,7 +34,7 @@ for (const raw of argv.slice(2)) {
   const [k, v] = raw.slice(2).split('=');
   args[k] = v ?? true;
 }
-const BASE          = args.base ?? 'https://map.openfantasymap.org';
+const BASE          = args.base ?? 'https://map.fantasymaps.org';
 const OUT           = resolve(args.out ?? '../tile-renders');
 const SIZE          = parseInt(args.size ?? '720', 10);
 const SETTLE_MS     = parseInt(args.settle ?? '8000', 10);
@@ -71,16 +71,46 @@ const tlData = await fetch(TIMELINES_URL).then(r => r.json());
 let timelines = Array.isArray(tlData) ? tlData : (tlData.timelines || []);
 console.log(`Found ${timelines.length} timelines`);
 
+// Dedupe by slug — timelines.json contains a few duplicate entries (e.g.
+// multiple /toril rows). Keep only the first occurrence so we don't render
+// the same world repeatedly.
+{
+  const seen = new Set();
+  timelines = timelines.filter(tl => {
+    const s = slugOf(tl);
+    if (!s || seen.has(s)) return false;
+    seen.add(s);
+    return true;
+  });
+  console.log(`After dedupe: ${timelines.length}`);
+}
+
 if (ONLY) timelines = timelines.filter(tl => ONLY.includes(slugOf(tl)));
 if (LIMIT > 0) timelines = timelines.slice(0, LIMIT);
 console.log(`Rendering ${timelines.length} → ${OUT}`);
 
 const browser = await puppeteer.launch({
+  // 'new' headless has working WebGL (with software fallback), which MapLibre
+  // requires. 'shell' / classic headless leaves the map canvas blank.
+  // --disable-web-security is required because production tile servers don't
+  // grant CORS to map.fantasymaps.org; without it tiles fail to fetch and
+  // the screenshot is just the dark surface color.
   headless: 'new',
-  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-gpu',
+    '--enable-unsafe-swiftshader',
+    '--disable-web-security',
+    '--disable-features=IsolateOrigins,site-per-process',
+    '--user-data-dir=/tmp/chrome-render',
+  ],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: SIZE, height: SIZE, deviceScaleFactor: 1 });
+// #ohm_map is sized as calc(100vh - 170px) so we add exactly that much
+// chrome padding to the viewport, leaving the map at SIZE × SIZE natively.
+const CHROME_PAD = 170;
+await page.setViewport({ width: SIZE, height: SIZE + CHROME_PAD, deviceScaleFactor: 1 });
 page.setDefaultTimeout(TIMEOUT);
 page.on('console', (msg) => {
   if (msg.type() === 'error') console.warn(`    [page] ${msg.text()}`);
@@ -115,26 +145,16 @@ async function renderOne(slug, url, outPath) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#ohm_map .maplibregl-canvas', { timeout: TIMEOUT });
 
-    // Strip chrome and force the map element to fill the viewport for a
-    // clean, edge-to-edge thumbnail.
+    // Soft-hide chrome — keeps Angular happy but removes it from the visual.
+    // The map element keeps its natural size (the viewport was sized so the
+    // calc() leaves it at SIZE × SIZE).
     await page.evaluate(() => {
-      const sel = [
-        'mat-toolbar',
-        '#timebar',
-        '#visualization',
-        '#ofm_attribution',
-        '.gaiawm',
-        '.maplibregl-control-container',
-      ];
-      for (const s of sel) document.querySelectorAll(s).forEach(el => el.remove());
-      const m = document.getElementById('ohm_map');
-      if (m) {
-        m.style.position = 'fixed';
-        m.style.inset = '0';
-        m.style.width = '100vw';
-        m.style.height = '100vh';
+      const sel = ['#ofm_attribution', '.gaiawm', '.maplibregl-control-container'];
+      for (const s of sel) {
+        for (const el of document.querySelectorAll(s)) {
+          (el).style.display = 'none';
+        }
       }
-      window.dispatchEvent(new Event('resize'));
     });
 
     // Wait for MapLibre's 'idle' event (style + tiles + sources fully loaded
@@ -168,10 +188,13 @@ async function renderOne(slug, url, outPath) {
     process.stdout.write(`  · idle: ${waited}\n`);
     await sleep(SETTLE_MS);
 
-    const buf = await page.screenshot({
+    // Screenshot the actual map element so the toolbar/timebar/etc. that
+    // we left in the DOM aren't included.
+    const mapEl = await page.$('#ohm_map');
+    if (!mapEl) throw new Error('#ohm_map not found at screenshot time');
+    const buf = await mapEl.screenshot({
       type: 'jpeg',
       quality: JPEG_QUALITY,
-      clip: { x: 0, y: 0, width: SIZE, height: SIZE },
     });
     await writeFile(outPath, buf);
 }
