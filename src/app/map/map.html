@@ -89,7 +89,8 @@
             <h1>Annotations</h1>
             <span class="spacer"></span>
             <button mat-icon-button aria-label="Import GeoJSON" (click)="annotImportInput.click()" title="Import GeoJSON"><mat-icon>file_upload</mat-icon></button>
-            <button mat-icon-button aria-label="Export as GeoJSON" (click)="exportAnnotations()" title="Export as GeoJSON"><mat-icon>file_download</mat-icon></button>
+            <button mat-icon-button aria-label="Export as GeoJSON" (click)="exportAnnotations()" title="Export annotations as GeoJSON"><mat-icon>file_download</mat-icon></button>
+            <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="Export GeoContext bundle (annotations + overlays + map ref)"><mat-icon>folder_zip</mat-icon></button>
             <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
         </mat-toolbar>
 
@@ -188,6 +189,7 @@
             <h1>Overlays</h1>
             <span class="spacer"></span>
             <button mat-icon-button aria-label="Add GeoJSON" (click)="overlayInput.click()" title="Add GeoJSON"><mat-icon>file_upload</mat-icon></button>
+            <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="Export GeoContext bundle (annotations + overlays + map ref)"><mat-icon>folder_zip</mat-icon></button>
             <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
         </mat-toolbar>
 

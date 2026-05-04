@@ -34,6 +34,7 @@ import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 declare const maplibregl: any;
 declare const vis: any;
 declare const turf: any;
+declare const JSZip: any;
 
 @Pipe({
   name: 'deck',
@@ -362,7 +363,7 @@ drawWedge(){
   viewLabelDraft = '';
 
   // ─── Imported overlays (session only) ───
-  overlays = signal<{ id: string; name: string; color: string; sourceId: string; layerIds: string[]; featureCount: number }[]>([]);
+  overlays = signal<{ id: string; name: string; color: string; sourceId: string; layerIds: string[]; featureCount: number; data: any }[]>([]);
   private overlayPalette = ['#c44632', '#c49232', '#469c8c', '#5064c3', '#965a96', '#dcd7c8'];
   private overlayPaletteIdx = 0;
 
@@ -1040,6 +1041,129 @@ toggleGaiaAgentsLayer(){
     reader.readAsText(file);
   }
 
+  async exportGeoContextZip() {
+    if (typeof JSZip === 'undefined') {
+      this._snackBar.open('JSZip library not loaded.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const world = this.ar.snapshot.params['timeline'];
+    const annotations = this.annot.getFeatureCollection(world);
+    const overlays = this.overlays();
+    const center = this.map.getCenter();
+    const zoom = this.map.getZoom();
+    const stamp = new Date().toISOString();
+    const datestamp = stamp.slice(0, 10);
+
+    const datasources: any[] = [];
+    const layers: any[] = [
+      { name: 'OpenStreetMap', type: 'osm-tiled' },
+      {
+        name: `OFM · ${this.title || world}`,
+        type: 'ofm-tiled',
+        conf: { url: `https://tiles.fantasymaps.org/${world}/{z}/{x}/{y}.png` },
+      },
+    ];
+
+    const zip = new JSZip();
+    const datasets = zip.folder('assets').folder('datasets');
+
+    if (annotations.features.length) {
+      datasets.file('annotations.geojson', JSON.stringify(annotations, null, 2));
+      datasources.push({
+        name: 'annotations',
+        type: 'geojson+http+remote',
+        conf: { source: 'assets/datasets/annotations.geojson' },
+      });
+      layers.push({
+        name: 'Annotations',
+        type: 'features',
+        datasource: 'annotations',
+      });
+    }
+
+    for (const o of overlays) {
+      if (!o.data) continue;
+      const safe = o.name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'overlay';
+      const dsName = `overlay_${o.id.slice(0, 8)}`;
+      const filename = `overlay-${o.id.slice(0, 8)}-${safe}.geojson`;
+      datasets.file(filename, JSON.stringify(o.data, null, 2));
+      datasources.push({
+        name: dsName,
+        type: 'geojson+http+remote',
+        conf: { source: `assets/datasets/${filename}` },
+      });
+      layers.push({
+        name: o.name,
+        type: 'features',
+        datasource: dsName,
+      });
+    }
+
+    const gcx = {
+      title: `OFM · ${this.title || world}`,
+      type: '2d',
+      center: [center.lat, center.lng],
+      minzoom: 1,
+      startzoom: Math.max(1, Math.round(zoom)),
+      maxzoom: 22,
+      search: false,
+      metadata: {
+        source: 'OpenFantasyMap (ofm-map-2)',
+        ofm_timeline: world,
+        ofm_world_name: this.title || world,
+        ofm_atDate: this.atDate,
+        ofm_pitch: this.map.getPitch(),
+        ofm_bearing: this.map.getBearing(),
+        exported_at: stamp,
+      },
+      datasources,
+      layers,
+    };
+    zip.file('gcx.json', JSON.stringify(gcx, null, 2));
+
+    const annotCount = annotations.features.length;
+    const overlayCount = overlays.length;
+    const readme =
+      `# GeoContext bundle — exported from OpenFantasyMap\n\n` +
+      `- World: **${this.title || world}**\n` +
+      `- Timeline: \`${world}\`\n` +
+      `- atDate: ${this.atDate}\n` +
+      `- Annotations: ${annotCount}\n` +
+      `- Overlays: ${overlayCount}\n` +
+      `- Exported: ${stamp}\n\n` +
+      `## Contents\n\n` +
+      `- \`gcx.json\` — GeoContext map descriptor\n` +
+      `- \`assets/datasets/\` — referenced GeoJSON files\n\n` +
+      `## How to use\n\n` +
+      `Drop this folder into a GeoContext-compatible repo or serve \`assets/\`\n` +
+      `from any static host. The OFM tile layer (\`ofm-tiled\`) points at the\n` +
+      `live tiles.fantasymaps.org URL for this timeline; OSM is provided as a\n` +
+      `fallback basemap. Each annotation/overlay is a separate features layer\n` +
+      `backed by a \`geojson+http+remote\` datasource so the renderer can fetch\n` +
+      `them as the user toggles them on.\n`;
+    zip.file('README.md', readme);
+
+    let blob;
+    try {
+      blob = await zip.generateAsync({ type: 'blob' });
+    } catch (err: any) {
+      console.error('Zip generation failed', err);
+      this._snackBar.open(`Zip error: ${err?.message ?? err}`, 'Close', { duration: 4000 });
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ofm-${world}-${datestamp}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+
+    this._snackBar.open(`Exported bundle (${annotCount} annot · ${overlayCount} overlays)`, 'Close', { duration: 2500 });
+  }
+
   exportAnnotations() {
     const world = this.ar.snapshot.params['timeline'];
     const fc = this.annot.getFeatureCollection(world);
@@ -1188,7 +1312,7 @@ toggleGaiaAgentsLayer(){
 
     this.overlays.update(list => [
       ...list,
-      { id, name, color, sourceId, layerIds: [fillId, lineId, pointId], featureCount: features.length },
+      { id, name, color, sourceId, layerIds: [fillId, lineId, pointId], featureCount: features.length, data },
     ]);
 
     // Bring annotations back to the top so the overlay doesn't bury them.
