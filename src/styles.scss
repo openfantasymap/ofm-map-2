@@ -289,7 +289,7 @@ a[matListItem],
   border-radius: 50%;
   font-size: 15px;
   line-height: 1;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   pointer-events: auto;
   box-shadow: 0 1px 4px oklch(0 0 0 / 0.35);
@@ -301,6 +301,15 @@ a[matListItem],
   &:hover {
     transform: scale(1.12);
     box-shadow: 0 2px 8px oklch(0 0 0 / 0.5);
+  }
+
+  &:active { cursor: grabbing; }
+
+  &.is-dragging {
+    cursor: grabbing;
+    transform: scale(1.18);
+    box-shadow: 0 6px 16px oklch(0 0 0 / 0.6);
+    transition: none;
   }
 }
 

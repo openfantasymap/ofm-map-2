@@ -355,6 +355,7 @@ drawWedge(){
   ANNOT_DRAFT_POINTS_LAYER_ID = 'annotations_draft_points';
   private annotMarkers = new Map<string, any>();                 // id → maplibregl.Marker
   private drawingCoords: [number, number][] = [];
+  private justDraggedMarker = false;                             // suppress click-after-drag
 
   // ─── Saved views ───
   views = signal<SavedView[]>([]);
@@ -755,9 +756,26 @@ toggleGaiaAgentsLayer(){
     for (const a of list) {
       if (a.geometry?.type !== 'Point') continue;
       const el = this.buildMarkerElement(a);
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center', draggable: true })
         .setLngLat(a.geometry.coordinates as [number, number])
         .addTo(this.map);
+
+      marker.on('dragstart', () => {
+        el.classList.add('is-dragging');
+      });
+      marker.on('dragend', () => {
+        el.classList.remove('is-dragging');
+        const ll = marker.getLngLat();
+        const world = this.ar.snapshot.params['timeline'];
+        this.annot.moveFeature(world, a.id, { type: 'Point', coordinates: [ll.lng, ll.lat] });
+        // Refresh the signal so the sidebar reflects the new coords.
+        this.annotations.set(this.annot.getAll(world));
+        this.cdr.markForCheck();
+        // Suppress the synthetic click that fires after the drag release.
+        this.justDraggedMarker = true;
+        setTimeout(() => { this.justDraggedMarker = false; }, 0);
+      });
+
       this.annotMarkers.set(a.id, marker);
     }
   }
@@ -776,6 +794,7 @@ toggleGaiaAgentsLayer(){
     }
     el.addEventListener('click', (ev) => {
       ev.stopPropagation();
+      if (this.justDraggedMarker) return;
       this.editAnnotation(a.id);
     });
     if (!this.annotationsVisible()) el.style.display = 'none';

@@ -87,6 +87,15 @@ export class AnnotationsStorage {
     return next;
   }
 
+  moveFeature(world: string, id: string, geometry: AnnotationGeometry): Annotation | null {
+    const list = this.getAll(world);
+    const i = list.findIndex(x => x.id === id);
+    if (i < 0) return null;
+    list[i] = { ...list[i], geometry, updated: new Date().toISOString() };
+    localStorage.setItem(this.key(world), JSON.stringify(list));
+    return list[i];
+  }
+
   delete(world: string, id: string): void {
     const list = this.getAll(world).filter(x => x.id !== id);
     localStorage.setItem(this.key(world), JSON.stringify(list));
