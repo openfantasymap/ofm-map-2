@@ -1,0 +1,58 @@
+# scripts/
+
+Out-of-band tooling. Each script is self-contained and pulls its own deps via
+this folder's `package.json`. Nothing here is imported by the Angular app.
+
+## `render-world-tiles.mjs`
+
+Renders a square thumbnail per timeline for use as the world-picker tile
+background. Walks `https://static.fantasymaps.org/timelines.json`, navigates a
+headless Chromium to each world's starting view (URL pattern
+`/<timeline>/<year>/<z>/<lat>/<lng>/0/0`), strips the chrome, and screenshots
+`#ohm_map` to JPG.
+
+### Setup
+
+```bash
+cd scripts
+npm install                # downloads Chromium (~150 MB)
+```
+
+### Render every world
+
+```bash
+node render-world-tiles.mjs
+# defaults:
+#   --base=https://map.openfantasymap.org
+#   --out=../tile-renders
+#   --size=720
+#   --settle=4500
+#   --jpeg-quality=86
+```
+
+### Common variations
+
+```bash
+# Re-render only Toril and Krynn at higher resolution
+node render-world-tiles.mjs --only=toril,krynn --size=1024
+
+# Resume an interrupted batch — skip what's already on disk
+node render-world-tiles.mjs --skip-existing
+
+# Render against a local dev server
+node render-world-tiles.mjs --base=http://localhost:4200 --settle=6000
+
+# Smoke test — first three only
+node render-world-tiles.mjs --limit=3
+```
+
+### Output
+
+JPGs are written as `<slug>.jpg` where `<slug>` is the timeline's URL path
+stripped of leading slashes and decoded (e.g. `/sta-wolf%20359` → `sta-wolf_359`).
+Default destination is `../tile-renders/` next to the project.
+
+To wire the renders into the world-picker grid, the live `timelines.json`
+already supports per-tile `bg`/`bgimg`. Upload the rendered JPGs to a static
+host (e.g. `static.fantasymaps.org/tiles/`) and set each timeline's `bgimg`
+to `url('https://static.fantasymaps.org/tiles/<slug>.jpg')`.
