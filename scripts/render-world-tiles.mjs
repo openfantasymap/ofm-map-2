@@ -37,8 +37,9 @@ for (const raw of argv.slice(2)) {
 const BASE          = args.base ?? 'https://map.openfantasymap.org';
 const OUT           = resolve(args.out ?? '../tile-renders');
 const SIZE          = parseInt(args.size ?? '720', 10);
-const SETTLE_MS     = parseInt(args.settle ?? '4500', 10);
-const TIMEOUT       = parseInt(args.timeout ?? '60000', 10);
+const SETTLE_MS     = parseInt(args.settle ?? '8000', 10);
+const IDLE_WAIT_MS  = parseInt(args['idle-wait'] ?? '20000', 10);
+const TIMEOUT       = parseInt(args.timeout ?? '90000', 10);
 const LIMIT         = args.limit ? parseInt(args.limit, 10) : 0;
 const ONLY          = args.only ? args.only.split(',').map(s => s.trim()) : null;
 const SKIP_EXISTING = !!args['skip-existing'];
@@ -104,7 +105,10 @@ for (const tl of timelines) {
 
   process.stdout.write(`→ ${slug}\n  ${url}\n`);
   try {
-    await page.goto(url, { waitUntil: 'networkidle2' });
+    // 'load' fires on window.load. We deliberately do NOT use networkidle*
+    // because the OFM map polls the gaia /agents endpoint every 5 s, so the
+    // network never goes idle and the wait would hang until the timeout.
+    await page.goto(url, { waitUntil: 'load' });
     await page.waitForSelector('#ohm_map .maplibregl-canvas', { timeout: TIMEOUT });
 
     // Strip chrome and force the map element to fill the viewport for a
@@ -128,19 +132,37 @@ for (const tl of timelines) {
       }
       window.dispatchEvent(new Event('resize'));
     });
-    await sleep(SETTLE_MS);
 
-    // Wait for any pending tiles by polling MapLibre's idle state if exposed.
-    await page.evaluate(() => new Promise((resolve) => {
-      const w = window;
-      const tryIdle = () => {
-        const map = w.__ofmMap || w.map || null;
-        if (map && typeof map.loaded === 'function' && map.loaded()) return resolve();
-        return resolve();
+    // Wait for MapLibre's 'idle' event (style + tiles + sources fully loaded
+    // and no animations in flight) using the global hook map.ts publishes on
+    // window.__ofmMap. Falls through to a plain settle sleep if the hook
+    // isn't found (e.g. against an older deployed build).
+    const waited = await page.evaluate((waitMs) => new Promise((resolve) => {
+      const start = Date.now();
+      const tick = () => {
+        const map = (window).__ofmMap;
+        if (!map || typeof map.loaded !== 'function') {
+          resolve('no-hook');
+          return;
+        }
+        if (map.loaded()) {
+          resolve('loaded-sync');
+          return;
+        }
+        let done = false;
+        const finish = (reason) => {
+          if (done) return;
+          done = true;
+          resolve(reason);
+        };
+        map.once('idle', () => finish('idle'));
+        const remaining = Math.max(500, waitMs - (Date.now() - start));
+        setTimeout(() => finish('timeout'), remaining);
       };
-      // Always resolve; the settle sleep above is the real wait.
-      tryIdle();
-    }));
+      tick();
+    }), IDLE_WAIT_MS);
+    process.stdout.write(`  · idle: ${waited}\n`);
+    await sleep(SETTLE_MS);
 
     const buf = await page.screenshot({
       type: 'jpeg',

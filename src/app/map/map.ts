@@ -429,7 +429,9 @@ drawWedge(){
 
     });
 
-    console.log(this.map);
+    // Expose for external tooling (the offline tile renderer waits on
+    // __ofmMap.loaded() / 'idle' instead of guessing with a sleep).
+    (window as any).__ofmMap = this.map;
 
     this.map.on('load', () => {
       this.showRels();

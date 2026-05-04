@@ -26,9 +26,17 @@ node render-world-tiles.mjs
 #   --base=https://map.openfantasymap.org
 #   --out=../tile-renders
 #   --size=720
-#   --settle=4500
+#   --idle-wait=20000   max ms to wait for MapLibre 'idle'
+#   --settle=8000       extra sleep after idle, for label placement
+#   --timeout=90000     per-page goto / waitForSelector timeout
 #   --jpeg-quality=86
 ```
+
+The script waits for MapLibre's `idle` event via `window.__ofmMap` (which
+`map.ts` publishes on init), falling back to a plain sleep if the hook
+isn't there. Do NOT pass `waitUntil: networkidle2` to Puppeteer — the OFM
+map polls the gaia agents endpoint every 5 s, so the network never goes
+idle and Puppeteer hangs until the navigation timeout fires.
 
 ### Common variations
 
