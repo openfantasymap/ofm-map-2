@@ -39,7 +39,9 @@ const OUT           = resolve(args.out ?? '../tile-renders');
 const SIZE          = parseInt(args.size ?? '720', 10);
 const SETTLE_MS     = parseInt(args.settle ?? '8000', 10);
 const IDLE_WAIT_MS  = parseInt(args['idle-wait'] ?? '20000', 10);
-const TIMEOUT       = parseInt(args.timeout ?? '90000', 10);
+const TIMEOUT       = parseInt(args.timeout ?? '45000', 10);
+const RETRIES       = parseInt(args.retries ?? '2', 10);
+const ALLOW_GAIA    = !!args['allow-gaia'];
 const LIMIT         = args.limit ? parseInt(args.limit, 10) : 0;
 const ONLY          = args.only ? args.only.split(',').map(s => s.trim()) : null;
 const SKIP_EXISTING = !!args['skip-existing'];
@@ -81,30 +83,30 @@ const page = await browser.newPage();
 await page.setViewport({ width: SIZE, height: SIZE, deviceScaleFactor: 1 });
 page.setDefaultTimeout(TIMEOUT);
 page.on('console', (msg) => {
-  // Surface page errors but stay quiet on info logs.
   if (msg.type() === 'error') console.warn(`    [page] ${msg.text()}`);
 });
 
-let ok = 0, skipped = 0, failed = 0;
-for (const tl of timelines) {
-  const slug = slugOf(tl);
-  if (!slug) { failed++; continue; }
-  const outPath = join(OUT, `${slug}.jpg`);
+// Block traffic that is irrelevant to the basemap thumbnail: the gaia
+// agents polling, MQTT bootstraps, etc. It cuts noisy in-flight network and
+// lets DOMContentLoaded fire faster on flaky days. Pass --allow-gaia to
+// keep them.
+if (!ALLOW_GAIA) {
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const u = req.url();
+    if (
+      u.includes('api.gaia.fantasymaps.org/') ||
+      u.includes('/agents/position') ||
+      u.includes('hivemq') ||
+      u.includes('mqtt')
+    ) {
+      return req.abort('blockedbyclient').catch(() => {});
+    }
+    return req.continue().catch(() => {});
+  });
+}
 
-  if (SKIP_EXISTING && await exists(outPath)) {
-    console.log(`· ${slug} → skip (exists)`);
-    skipped++;
-    continue;
-  }
-
-  const date = tl.date ?? 0;
-  const z    = tl.base?.zoom ?? 4;
-  const lat  = tl.base?.lat ?? 0;
-  const lng  = tl.base?.lng ?? 0;
-  const url  = `${BASE}${tl.url}/${date}/${z}/${lat}/${lng}/0/0`;
-
-  process.stdout.write(`→ ${slug}\n  ${url}\n`);
-  try {
+async function renderOne(slug, url, outPath) {
     // 'domcontentloaded' returns once HTML is parsed; we then wait for the
     // MapLibre canvas and its 'idle' event explicitly. Don't use 'load' or
     // 'networkidle*' — 'load' waits for every initial sub-resource (one
@@ -172,11 +174,48 @@ for (const tl of timelines) {
       clip: { x: 0, y: 0, width: SIZE, height: SIZE },
     });
     await writeFile(outPath, buf);
+}
+
+let ok = 0, skipped = 0, failed = 0;
+for (const tl of timelines) {
+  const slug = slugOf(tl);
+  if (!slug) { failed++; continue; }
+  const outPath = join(OUT, `${slug}.jpg`);
+
+  if (SKIP_EXISTING && await exists(outPath)) {
+    console.log(`· ${slug} → skip (exists)`);
+    skipped++;
+    continue;
+  }
+
+  const date = tl.date ?? 0;
+  const z    = tl.base?.zoom ?? 4;
+  const lat  = tl.base?.lat ?? 0;
+  const lng  = tl.base?.lng ?? 0;
+  const url  = `${BASE}${tl.url}/${date}/${z}/${lat}/${lng}/0/0`;
+
+  process.stdout.write(`→ ${slug}\n  ${url}\n`);
+
+  let lastErr = null;
+  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+    if (attempt > 0) process.stdout.write(`  ⟳ retry ${attempt}/${RETRIES}\n`);
+    try {
+      await renderOne(slug, url, outPath);
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+      // Reset the page between attempts so a half-loaded state doesn't poison the next try.
+      try { await page.goto('about:blank'); } catch {}
+    }
+  }
+
+  if (lastErr) {
+    console.error(`  ✗ ${slug}: ${lastErr.message}`);
+    failed++;
+  } else {
     console.log(`  ✓ ${outPath}`);
     ok++;
-  } catch (err) {
-    console.error(`  ✗ ${slug}: ${err.message}`);
-    failed++;
   }
 }
 

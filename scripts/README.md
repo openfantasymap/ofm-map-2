@@ -28,8 +28,12 @@ node render-world-tiles.mjs
 #   --size=720
 #   --idle-wait=20000   max ms to wait for MapLibre 'idle'
 #   --settle=8000       extra sleep after idle, for label placement
-#   --timeout=90000     per-page goto / waitForSelector timeout
+#   --timeout=45000     per-page goto / waitForSelector timeout
+#   --retries=2         attempts per tile after the first
 #   --jpeg-quality=86
+#                       blocked by default (pass --allow-gaia to keep):
+#                         api.gaia.fantasymaps.org/*, /agents/position,
+#                         hivemq*, mqtt*
 ```
 
 The script uses `waitUntil: 'domcontentloaded'` on `page.goto`, then waits
