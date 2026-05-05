@@ -50,13 +50,19 @@
                 <div id="ohm_timelines" class="world-grid">
                     <a *ngFor="let tl of seen_timelines; let i = index"
                        class="world-tile"
+                       [class.world-tile--hero]="i === 0"
                        [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng, 0, 0]">
-                        <figure class="world-tile__art" [style.background]="tl.bg" [style.background-image]="bgImage(tl)" aria-hidden="true"></figure>
+                        <figure class="world-tile__art" [style.background]="tl.bg" aria-hidden="true">
+                            <span class="world-tile__bg" [style.background-image]="bgImage(tl)"></span>
+                            <span class="world-tile__vignette"></span>
+                            <span class="world-tile__corners"></span>
+                            <span class="world-tile__index">№&nbsp;{{romanize(i + 1)}}</span>
+                            <span class="world-tile__cue">Enter <span class="world-tile__cue-arrow">↗</span></span>
+                        </figure>
                         <figcaption class="world-tile__caption">
+                            <p *ngIf="i === 0" class="world-tile__eyebrow">The featured plate</p>
                             <h3 class="world-tile__name">{{tl.name}}</h3>
                             <p class="world-tile__dateline">
-                                <span>Plate&nbsp;{{romanize(i + 1)}}</span>
-                                <span aria-hidden="true">·</span>
                                 <span>{{tl.date}}</span>
                                 <ng-container *ngIf="primaryTags(tl) as t">
                                     <span aria-hidden="true">·</span>
