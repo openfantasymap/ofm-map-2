@@ -78,4 +78,15 @@ selected_tags!: string[];
     this.seen_timelines = this.timelines.filter((x:any)=>x.tags?.indexOf(tag) >= 0);
   }
 
+  // Returns a CSS background-image value pointing at the locally-bundled
+  // tile-render JPG. Slug is the timeline's URL path stripped of leading
+  // slashes (must match the renderer script's slugOf()). If the JPG isn't
+  // there yet the browser falls back to the tile's [style.background]
+  // color.
+  bgImage(tl: any): string {
+    if (!tl?.url) return tl?.bgimg ?? '';
+    const slug = decodeURIComponent(tl.url.replace(/^\/+/, '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `url('/assets/tile-renders/${slug}.jpg')`;
+  }
+
 }

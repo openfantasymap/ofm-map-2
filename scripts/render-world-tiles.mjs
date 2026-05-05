@@ -35,7 +35,7 @@ for (const raw of argv.slice(2)) {
   args[k] = v ?? true;
 }
 const BASE          = args.base ?? 'https://map.fantasymaps.org';
-const OUT           = resolve(args.out ?? '../tile-renders');
+const OUT           = resolve(args.out ?? '../public/assets/tile-renders');
 const SIZE          = parseInt(args.size ?? '720', 10);
 const SETTLE_MS     = parseInt(args.settle ?? '8000', 10);
 const IDLE_WAIT_MS  = parseInt(args['idle-wait'] ?? '20000', 10);

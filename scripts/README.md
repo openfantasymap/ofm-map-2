@@ -24,7 +24,9 @@ npm install                # downloads Chromium (~150 MB)
 node render-world-tiles.mjs
 # defaults:
 #   --base=https://map.fantasymaps.org   (the live OFM viewer)
-#   --out=../tile-renders
+#   --out=../public/assets/tile-renders  (Angular bundles everything in
+#                                         public/ verbatim, so renders
+#                                         become /assets/tile-renders/*.jpg)
 #   --size=720
 #   --idle-wait=20000   max ms to wait for MapLibre 'idle'
 #   --settle=8000       extra sleep after idle, for label placement
@@ -67,13 +69,15 @@ node render-world-tiles.mjs --limit=3
 ### Output
 
 JPGs are written as `<slug>.jpg` where `<slug>` is the timeline's URL path
-stripped of leading slashes and decoded (e.g. `/sta-wolf%20359` → `sta-wolf_359`).
-Default destination is `../tile-renders/` next to the project.
+stripped of leading slashes and decoded (e.g. `/sta-wolf%20359` →
+`sta-wolf_359`). Default destination is `public/assets/tile-renders/`,
+which Angular bundles into `dist/` verbatim — the world-picker page
+loads each tile from `/assets/tile-renders/<slug>.jpg` (see
+`Timelines.bgImage()` in `src/app/timelines/timelines.ts`).
 
-To wire the renders into the world-picker grid, the live `timelines.json`
-already supports per-tile `bg`/`bgimg`. Upload the rendered JPGs to a static
-host (e.g. `static.fantasymaps.org/tiles/`) and set each timeline's `bgimg`
-to `url('https://static.fantasymaps.org/tiles/<slug>.jpg')`.
+If a slug has no JPG yet the `<a>` tile falls back to its
+`[style.background]` colour from `timelines.json`, so missing renders
+degrade gracefully.
 
 ### Docker (recommended)
 
@@ -86,10 +90,10 @@ GLIBC version dance.
 # Build once (~1 GB, mostly Chromium).
 docker build -t ofm-tile-renderer ./scripts
 
-# Render every world to ./tile-renders
-mkdir -p tile-renders
+# Render every world straight into the bundled assets folder
+mkdir -p public/assets/tile-renders
 docker run --rm --init --shm-size=2g \
-  -v "$(pwd)/tile-renders:/out" \
+  -v "$(pwd)/public/assets/tile-renders:/out" \
   ofm-tile-renderer
 ```
 
@@ -97,7 +101,7 @@ Pass any of the script's flags after the image name:
 
 ```bash
 docker run --rm --init --shm-size=2g \
-  -v "$(pwd)/tile-renders:/out" \
+  -v "$(pwd)/public/assets/tile-renders:/out" \
   ofm-tile-renderer --only=toril,krynn --size=1024 --skip-existing
 ```
 

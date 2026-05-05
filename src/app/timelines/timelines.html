@@ -52,7 +52,7 @@
                        class="world-tile"
                        [style.background]="tl.bg"
                        [style.color]="tl.color"
-                       [style.background-image]="tl.bgimg"
+                       [style.background-image]="bgImage(tl)"
                        [style.grid-column]="'span ' + (tl.size || 1)"
                        [style.grid-row]="'span ' + (tl.size || 1)"
                        [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng, 0, 0]">
