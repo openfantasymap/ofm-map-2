@@ -85,133 +85,172 @@
     }
     @if(ractive() === 'annotations'){
         <input type="file" #annotImportInput accept=".geojson,application/geo+json,application/json" hidden (change)="onAnnotationImportInput($event); annotImportInput.value = ''">
-        <mat-toolbar>
-            <h1>Annotations</h1>
-            <span class="spacer"></span>
-            <button mat-icon-button aria-label="Import GeoJSON" (click)="annotImportInput.click()" title="Import GeoJSON"><mat-icon>file_upload</mat-icon></button>
-            <button mat-icon-button aria-label="Export as GeoJSON" (click)="exportAnnotations()" title="Export annotations as GeoJSON"><mat-icon>file_download</mat-icon></button>
-            <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="Export GeoContext bundle (annotations + overlays + map ref)"><mat-icon>folder_zip</mat-icon></button>
-            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
-        </mat-toolbar>
-
-        <div class="annot-actions">
-            <mat-slide-toggle [checked]="annotationsVisible()" (toggleChange)="toggleAnnotationsVisible()">Show on map</mat-slide-toggle>
-            <div class="annot-modes">
-                <button mat-stroked-button [class.is-active]="annotating()" (click)="setPlacementMode(annotating() ? null : 'point')">
-                    <mat-icon>place</mat-icon> Point
-                </button>
-                <button mat-stroked-button [class.is-active]="drawingMode() === 'line'" (click)="setPlacementMode(drawingMode() === 'line' ? null : 'line')">
-                    <mat-icon>timeline</mat-icon> Line
-                </button>
-                <button mat-stroked-button [class.is-active]="drawingMode() === 'polygon'" (click)="setPlacementMode(drawingMode() === 'polygon' ? null : 'polygon')">
-                    <mat-icon>crop_square</mat-icon> Polygon
-                </button>
+        <header class="panel-head">
+            <div class="panel-head__top">
+                <span class="mark">Annotations</span>
+                <span class="spacer"></span>
+                <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()"><mat-icon>close</mat-icon></button>
             </div>
+            <h1 class="panel-head__title">Annotations</h1>
+            <p class="panel-head__lede">
+                {{ annotations().length }} on this world
+            </p>
+            <div class="panel-head__rail">
+                <button mat-icon-button aria-label="Import GeoJSON" (click)="annotImportInput.click()" title="Import GeoJSON"><mat-icon>file_upload</mat-icon></button>
+                <button mat-icon-button aria-label="Export GeoJSON" (click)="exportAnnotations()" title="Export annotations"><mat-icon>file_download</mat-icon></button>
+                <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="GeoContext bundle"><mat-icon>folder_zip</mat-icon></button>
+            </div>
+        </header>
+
+        <div class="panel-tools">
+            <label class="visibility-toggle">
+                <mat-slide-toggle [checked]="annotationsVisible()" (toggleChange)="toggleAnnotationsVisible()"></mat-slide-toggle>
+                <span class="mark">Show on map</span>
+            </label>
+
+            <div class="mode-row" role="radiogroup" aria-label="Placement mode">
+                <button type="button" role="radio" [attr.aria-checked]="annotating()" [class.is-active]="annotating()" (click)="setPlacementMode(annotating() ? null : 'point')">Point</button>
+                <span class="mode-row__sep" aria-hidden="true">·</span>
+                <button type="button" role="radio" [attr.aria-checked]="drawingMode() === 'line'" [class.is-active]="drawingMode() === 'line'" (click)="setPlacementMode(drawingMode() === 'line' ? null : 'line')">Line</button>
+                <span class="mode-row__sep" aria-hidden="true">·</span>
+                <button type="button" role="radio" [attr.aria-checked]="drawingMode() === 'polygon'" [class.is-active]="drawingMode() === 'polygon'" (click)="setPlacementMode(drawingMode() === 'polygon' ? null : 'polygon')">Polygon</button>
+            </div>
+
             @if (drawingMode()) {
-                <div class="annot-draw-actions">
-                    <button mat-button (click)="undoLastPoint()"><mat-icon>undo</mat-icon> Undo</button>
-                    <button mat-button (click)="cancelDrawing()"><mat-icon>close</mat-icon> Cancel</button>
+                <div class="mode-row mode-row--secondary">
+                    <button type="button" (click)="undoLastPoint()">Undo</button>
+                    <span class="mode-row__sep" aria-hidden="true">·</span>
+                    <button type="button" (click)="cancelDrawing()">Cancel</button>
                 </div>
             }
-            <p class="annot-hint mark">
+
+            <p class="panel-hint">
                 @if (annotating()) {
-                    Click on the map to drop a marker
+                    Click the map to drop a marker.
                 } @else if (drawingMode() === 'line') {
-                    Click to add points · double-click to finish
+                    Click to add points; double-click to finish.
                 } @else if (drawingMode() === 'polygon') {
-                    Click vertices · double-click to close
+                    Click vertices; double-click to close.
                 } @else {
-                    Pick a tool, then click the map
+                    Pick a tool, then click the map.
                 }
             </p>
         </div>
 
         @if (annotations().length === 0) {
-            <p class="annot-empty">No annotations on this world yet.</p>
+            <p class="panel-empty">No annotations on this world yet.</p>
         } @else {
-            <div class="annot-list">
-                @for (a of annotations(); track a.id) {
-                    <div class="annot-row">
-                        <button mat-icon-button (click)="locateAnnotation(a)" [attr.aria-label]="'Locate ' + a.geometry.type">
+            <ol class="entries">
+                @for (a of annotations(); track a.id; let i = $index) {
+                    <li class="entry">
+                        <button class="entry__locate" mat-icon-button (click)="locateAnnotation(a)" [attr.aria-label]="'Locate ' + a.geometry.type">
                             @if (a.icon && a.geometry.type === 'Point') {
-                                <i class="annot-row__glyph" [class]="a.icon" [style.color]="a.color || null"></i>
+                                <i class="entry__glyph" [class]="a.icon" [style.color]="a.color || null"></i>
                             } @else {
-                                <mat-icon>{{ geometryGlyph(a) }}</mat-icon>
+                                <mat-icon class="entry__glyph">{{ geometryGlyph(a) }}</mat-icon>
                             }
                         </button>
-                        <div class="annot-body">
-                            <div class="annot-title">{{ a.title }}</div>
-                            @if (a.body) { <div class="annot-snippet">{{ a.body }}</div> }
+                        <div class="entry__body">
+                            <h2 class="entry__title">{{ a.title }}</h2>
+                            <p class="entry__dateline"><span>№&nbsp;{{ romanize(i + 1) }}</span> <span aria-hidden="true">·</span> <span>{{ a.geometry.type }}</span></p>
+                            @if (a.body) { <p class="entry__snippet">{{ a.body }}</p> }
                         </div>
-                        <button mat-icon-button (click)="editAnnotation(a.id)" aria-label="Edit"><mat-icon>edit</mat-icon></button>
-                        <button mat-icon-button (click)="deleteAnnotation(a.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
-                    </div>
+                        <div class="entry__actions">
+                            <button mat-icon-button (click)="editAnnotation(a.id)" aria-label="Edit"><mat-icon>edit</mat-icon></button>
+                            <button mat-icon-button (click)="deleteAnnotation(a.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                        </div>
+                    </li>
                 }
-            </div>
+            </ol>
         }
     }
     @if(ractive() === 'views'){
-        <mat-toolbar>
-            <h1>Saved views</h1>
-            <span class="spacer"></span>
-            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
-        </mat-toolbar>
+        <header class="panel-head">
+            <div class="panel-head__top">
+                <span class="mark">Saved views</span>
+                <span class="spacer"></span>
+                <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()"><mat-icon>close</mat-icon></button>
+            </div>
+            <h1 class="panel-head__title">Saved views</h1>
+            <p class="panel-head__lede">{{ views().length }} bookmark{{ views().length === 1 ? '' : 's' }}</p>
+        </header>
 
-        <div class="annot-actions">
-            <mat-form-field appearance="outline" class="view-label-field">
+        <div class="panel-tools">
+            <mat-form-field appearance="outline" class="panel-input">
                 <mat-label>Label (optional)</mat-label>
                 <input matInput [(ngModel)]="viewLabelDraft" placeholder="e.g. Castle approach" />
             </mat-form-field>
-            <button mat-flat-button color="primary" (click)="saveCurrentView()">Save current view</button>
-            <p class="annot-hint mark">Captures position, zoom and date.</p>
+            <button mat-flat-button color="primary" class="panel-cta" (click)="saveCurrentView()">Save current view</button>
+            <p class="panel-hint">Captures position, zoom, date, pitch &amp; bearing.</p>
         </div>
 
         @if (views().length === 0) {
-            <p class="annot-empty">No saved views on this world yet.</p>
+            <p class="panel-empty">No saved views on this world yet.</p>
         } @else {
-            <div class="annot-list">
-                @for (v of views(); track v.id) {
-                    <div class="annot-row">
-                        <button mat-icon-button (click)="gotoView(v)" aria-label="Fly to view"><mat-icon>flight_takeoff</mat-icon></button>
-                        <div class="annot-body">
-                            <div class="annot-title">{{ v.label }}</div>
-                            <div class="annot-snippet">z{{ v.zoom | number:'1.1-1' }} · {{ v.lat | number:'1.2-2' }}, {{ v.lng | number:'1.2-2' }} · {{ v.date | number:'1.0-2' }}</div>
+            <ol class="entries">
+                @for (v of views(); track v.id; let i = $index) {
+                    <li class="entry">
+                        <button class="entry__locate" mat-icon-button (click)="gotoView(v)" aria-label="Fly to view"><mat-icon class="entry__glyph">flight_takeoff</mat-icon></button>
+                        <div class="entry__body">
+                            <h2 class="entry__title">{{ v.label }}</h2>
+                            <p class="entry__dateline">
+                                <span>№&nbsp;{{ romanize(i + 1) }}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>z{{ v.zoom | number:'1.1-1' }}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>{{ v.date | number:'1.0-2' }}</span>
+                            </p>
+                            <p class="entry__snippet">{{ v.lat | number:'1.2-2' }}, {{ v.lng | number:'1.2-2' }}</p>
                         </div>
-                        <button mat-icon-button (click)="deleteView(v.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
-                    </div>
+                        <div class="entry__actions">
+                            <button mat-icon-button (click)="deleteView(v.id)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                        </div>
+                    </li>
                 }
-            </div>
+            </ol>
         }
     }
     @if(ractive() === 'overlays'){
         <input type="file" #overlayInput accept=".geojson,application/geo+json,application/json" hidden multiple (change)="importOverlaysFromInput($event); overlayInput.value = ''">
-        <mat-toolbar>
-            <h1>Overlays</h1>
-            <span class="spacer"></span>
-            <button mat-icon-button aria-label="Add GeoJSON" (click)="overlayInput.click()" title="Add GeoJSON"><mat-icon>file_upload</mat-icon></button>
-            <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="Export GeoContext bundle (annotations + overlays + map ref)"><mat-icon>folder_zip</mat-icon></button>
-            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
-        </mat-toolbar>
+        <header class="panel-head">
+            <div class="panel-head__top">
+                <span class="mark">Overlays</span>
+                <span class="spacer"></span>
+                <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()"><mat-icon>close</mat-icon></button>
+            </div>
+            <h1 class="panel-head__title">Overlays</h1>
+            <p class="panel-head__lede">{{ overlays().length }} loaded · session only</p>
+            <div class="panel-head__rail">
+                <button mat-icon-button aria-label="Add GeoJSON" (click)="overlayInput.click()" title="Add GeoJSON"><mat-icon>file_upload</mat-icon></button>
+                <button mat-icon-button aria-label="Export GeoContext bundle" (click)="exportGeoContextZip()" title="GeoContext bundle"><mat-icon>folder_zip</mat-icon></button>
+            </div>
+        </header>
 
-        <div class="annot-actions">
-            <p class="annot-hint mark">Drop a .geojson on the map, or use the upload icon. Session-only.</p>
+        <div class="panel-tools">
+            <p class="panel-hint">Drop a .geojson on the map, or use the upload icon.</p>
         </div>
 
         @if (overlays().length === 0) {
-            <p class="annot-empty">No overlays loaded.</p>
+            <p class="panel-empty">No overlays loaded.</p>
         } @else {
-            <div class="annot-list">
-                @for (o of overlays(); track o.id) {
-                    <div class="annot-row">
-                        <span class="annot-swatch" [style.background]="o.color"></span>
-                        <div class="annot-body">
-                            <div class="annot-title">{{ o.name }}</div>
-                            <div class="annot-snippet">{{ o.featureCount }} feature{{ o.featureCount === 1 ? '' : 's' }}</div>
+            <ol class="entries">
+                @for (o of overlays(); track o.id; let i = $index) {
+                    <li class="entry">
+                        <span class="entry__swatch" [style.background]="o.color" aria-hidden="true"></span>
+                        <div class="entry__body">
+                            <h2 class="entry__title">{{ o.name }}</h2>
+                            <p class="entry__dateline">
+                                <span>№&nbsp;{{ romanize(i + 1) }}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>{{ o.featureCount }} feature{{ o.featureCount === 1 ? '' : 's' }}</span>
+                            </p>
                         </div>
-                        <button mat-icon-button (click)="removeOverlay(o.id)" aria-label="Remove"><mat-icon>delete</mat-icon></button>
-                    </div>
+                        <div class="entry__actions">
+                            <button mat-icon-button (click)="removeOverlay(o.id)" aria-label="Remove"><mat-icon>delete</mat-icon></button>
+                        </div>
+                    </li>
                 }
-            </div>
+            </ol>
         }
     }
     @if(ractive() === 'events'){

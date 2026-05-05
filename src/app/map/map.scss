@@ -208,134 +208,249 @@ mat-sidenav-container {
   border: 0;
 }
 
-// ─────── Annotations panel (right sidebar) ───────
-.annot-actions {
+// ─────── Right-sidebar plates (annotations / views / overlays) ───────
+// Every panel uses the same editorial structure: mark label → italic
+// Spectral title → mono lede → hairline → tools block → entries list.
+// The aim is for all three panels to read like sister plates of the same
+// atlas, not three independently-invented surfaces.
+
+.panel-head {
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule);
+  background: var(--ofm-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-2xs);
+
+    .mark { color: var(--ink-3); }
+
+    .mat-mdc-icon-button {
+      --mdc-icon-button-state-layer-size: 32px;
+      margin-right: -8px;
+    }
+  }
+
+  &__title {
+    font-family: var(--ofm-font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: var(--ofm-size-xl);
+    line-height: var(--ofm-lead-tight);
+    letter-spacing: -0.012em;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  &__lede {
+    margin: 0;
+    font-family: var(--ofm-font-mono);
+    font-size: var(--ofm-size-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  &__rail {
+    margin: var(--space-xs) calc(var(--space-2xs) * -1) 0 calc(var(--space-2xs) * -1);
+    display: flex;
+    gap: var(--space-2xs);
+
+    .mat-mdc-icon-button {
+      --mdc-icon-button-state-layer-size: 36px;
+      color: var(--ink-2);
+
+      &:hover { color: var(--cinnabar-ink); }
+    }
+  }
+}
+
+.panel-tools {
   padding: var(--space-md);
-  border-bottom: 1px solid var(--ofm-border-faint);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule-faint);
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-
-  mat-slide-toggle { display: block; }
-
-  .view-label-field { width: 100%; }
-
-  .annot-hint {
-    margin: var(--space-2xs) 0 0;
-    color: var(--ofm-text-muted);
-  }
+  gap: var(--space-sm);
 }
 
-.annot-modes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2xs);
-
-  button {
-    min-width: 0;
-    padding: 0 var(--space-2xs);
-    font-family: var(--ofm-font-mono);
-    font-size: var(--ofm-size-2xs);
-    letter-spacing: 0.10em;
-    text-transform: uppercase;
-
-    mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-      margin-right: 2px;
-    }
-
-    &.is-active {
-      border-color: var(--ofm-accent);
-      color: var(--ofm-accent-hover);
-      background: var(--ofm-accent-wash);
-    }
-  }
-}
-
-.annot-draw-actions {
-  display: flex;
-  gap: var(--space-2xs);
-
-  button {
-    flex: 1;
-    font-family: var(--ofm-font-mono);
-    font-size: var(--ofm-size-2xs);
-    letter-spacing: 0.10em;
-    text-transform: uppercase;
-  }
-}
-
-.annot-row__glyph {
-  font-size: 18px;
-  line-height: 1;
-  color: var(--ofm-text);
-}
-
-.annot-empty {
-  padding: var(--space-lg) var(--space-md);
-  font-family: var(--ofm-font-display);
-  font-style: italic;
-  color: var(--ofm-text-muted);
-}
-
-.annot-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.annot-row {
+// "Show on map" — a slide-toggle paired with a mark label
+.visibility-toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
-  padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-2xs);
-  border-bottom: 1px solid var(--ofm-border-faint);
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+// Tight caps-mono row for placement modes — three text buttons separated
+// by middle dots, with cinnabar underline on the active one. Keeps the
+// register editorial rather than the chunky stroked-button feel.
+.mode-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+  font-family: var(--ofm-font-mono);
+  font-size: var(--ofm-size-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+
+  button {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 4px 0;
+    cursor: pointer;
+    font: inherit;
+    color: var(--ink-3);
+    border-bottom: var(--ofm-rule-w-bold) solid transparent;
+    transition: color var(--ofm-dur-1) var(--ofm-ease),
+                border-color var(--ofm-dur-1) var(--ofm-ease);
+
+    &:hover { color: var(--ink); }
+
+    &.is-active {
+      color: var(--cinnabar-ink);
+      border-bottom-color: var(--cinnabar);
+    }
+  }
+
+  &__sep { color: var(--ink-rule); }
+
+  &--secondary button { color: var(--ink-2); }
+}
+
+.panel-input { width: 100%; }
+
+.panel-cta {
+  align-self: flex-start;
+  font-family: var(--ofm-font-mono);
+  font-size: var(--ofm-size-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.panel-hint {
+  margin: 0;
+  font-family: var(--ofm-font-body);
+  font-size: var(--ofm-size-xs);
+  font-style: italic;
+  color: var(--ink-3);
+  line-height: var(--ofm-lead-body);
+}
+
+.panel-empty {
+  padding: var(--space-xl) var(--space-md);
+  font-family: var(--ofm-font-display);
+  font-style: italic;
+  color: var(--ink-3);
+  text-align: left;
+  text-wrap: balance;
+}
+
+// Editorial entries — like a museum index. Each row carries a marker glyph,
+// italic Spectral title, mono dateline, optional snippet. Hairline rules
+// separate them and the row inset gives breathing room in a 320 px column.
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  column-gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule-faint);
   transition: background var(--ofm-dur-1) var(--ofm-ease);
 
   &:hover { background: var(--ofm-surface-raised); }
 
-  .annot-swatch {
-    flex: 0 0 auto;
+  &__locate {
+    --mdc-icon-button-state-layer-size: 32px;
+    margin-left: calc(var(--space-2xs) * -1);
+    color: var(--ink-2);
+
+    &:hover { color: var(--cinnabar-ink); }
+  }
+
+  &__glyph {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  &__swatch {
     width: 14px;
     height: 14px;
-    margin: 0 var(--space-2xs);
+    margin: 6px var(--space-2xs);
     border-radius: 50%;
-    border: 1px solid var(--ofm-border);
+    border: 1px solid var(--ink-rule);
   }
 
-  .annot-body {
-    flex: 1 1 auto;
+  &__body {
     min-width: 0;
-    padding: 0 var(--space-2xs);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  .annot-title {
+  &__title {
+    margin: 0;
     font-family: var(--ofm-font-display);
-    font-size: var(--ofm-size-sm);
+    font-style: italic;
     font-weight: 500;
-    color: var(--ofm-text);
+    font-size: var(--ofm-size-sm);
+    color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     line-height: var(--ofm-lead-tight);
   }
 
-  .annot-snippet {
-    font-family: var(--ofm-font-body);
+  &__dateline {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.4em;
+    font-family: var(--ofm-font-mono);
     font-size: var(--ofm-size-2xs);
-    color: var(--ofm-text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    margin-top: 2px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    line-height: var(--ofm-lead-tight);
+
+    span[aria-hidden] { color: var(--ink-rule); }
   }
 
-  .mat-mdc-icon-button {
-    --mdc-icon-button-state-layer-size: 32px;
-    color: var(--ofm-text-muted);
+  &__snippet {
+    margin: var(--space-2xs) 0 0;
+    font-family: var(--ofm-font-body);
+    font-size: var(--ofm-size-xs);
+    color: var(--ink-2);
+    line-height: var(--ofm-lead-body);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 
-    &:hover { color: var(--ofm-accent-hover); }
+  &__actions {
+    display: flex;
+    gap: 0;
+
+    .mat-mdc-icon-button {
+      --mdc-icon-button-state-layer-size: 32px;
+      color: var(--ink-3);
+
+      &:hover { color: var(--cinnabar-ink); }
+    }
   }
 }
 

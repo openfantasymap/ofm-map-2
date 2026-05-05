@@ -1,22 +1,27 @@
-<h2 mat-dialog-title>{{ data.mode === 'edit' ? 'Edit annotation' : 'New annotation' }}</h2>
-<mat-dialog-content>
-  <p class="coords">
-    {{ geometryLabel() }}
+<header class="dialog-head" mat-dialog-title>
+  <span class="mark">{{ data.mode === 'edit' ? 'Edit annotation' : 'New annotation' }}</span>
+  <h2 class="dialog-head__title">{{ title || (data.mode === 'edit' ? 'Untitled' : 'A note on this place') }}</h2>
+  <p class="dialog-head__dateline">
+    <span>{{ geometryLabel() }}</span>
     @if (data.lat !== undefined && data.lng !== undefined) {
-      &middot; {{ data.lat.toFixed(4) }}, {{ data.lng.toFixed(4) }}
+      <span aria-hidden="true">·</span>
+      <span>{{ data.lat.toFixed(4) }}, {{ data.lng.toFixed(4) }}</span>
     }
   </p>
-  <mat-form-field class="wide">
+</header>
+
+<mat-dialog-content class="dialog-body">
+  <mat-form-field class="wide" appearance="outline">
     <mat-label>Title</mat-label>
     <input matInput name="ann-title" [(ngModel)]="title" cdkFocusInitial />
   </mat-form-field>
-  <mat-form-field class="wide">
+  <mat-form-field class="wide" appearance="outline">
     <mat-label>Note</mat-label>
-    <textarea matInput name="ann-body" rows="4" [(ngModel)]="body"></textarea>
+    <textarea matInput name="ann-body" rows="3" [(ngModel)]="body"></textarea>
   </mat-form-field>
 
-  <div class="palette">
-    <p class="palette__label">Color</p>
+  <section class="field">
+    <p class="field__label mark">Color</p>
     <div class="palette__swatches">
       @for (c of palette; track c.value) {
         <button type="button"
@@ -28,13 +33,15 @@
                 (click)="selectColor(c.value)"></button>
       }
     </div>
-  </div>
+  </section>
 
   @if (data.geometryType === 'Point' || data.geometryType === undefined) {
-    <div class="icons">
-      <p class="palette__label">Icon</p>
-      <div class="icons__controls">
-        <mat-form-field appearance="outline" class="icons__category">
+    <section class="field">
+      <div class="field__head">
+        <p class="field__label mark">Icon</p>
+      </div>
+      <div class="icon-controls">
+        <mat-form-field appearance="outline" class="icon-controls__category">
           <mat-label>Category</mat-label>
           <mat-select [value]="selectedCategoryIndex()" (selectionChange)="setCategory($event.value)">
             @for (cat of catalog; track cat.label; let i = $index) {
@@ -42,19 +49,19 @@
             }
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="icons__filter">
+        <mat-form-field appearance="outline" class="icon-controls__filter">
           <mat-label>Filter</mat-label>
-          <input matInput name="icon-filter" [ngModel]="filter()" (ngModelChange)="filter.set($event)" placeholder="Type to filter" />
+          <input matInput name="icon-filter" [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
         </mat-form-field>
       </div>
 
-      <div class="icons__grid">
+      <div class="icon-grid">
         <button type="button"
-                class="icon-btn"
+                class="icon-btn icon-btn--none"
                 [class.is-selected]="icon === ''"
                 title="No icon"
                 (click)="selectIcon('')">
-          <span class="icon-btn__none">·</span>
+          <span aria-hidden="true">∅</span>
         </button>
         @for (i of filteredIcons(); track i.cls) {
           <button type="button"
@@ -68,16 +75,17 @@
           </button>
         }
         @if (filteredIcons().length === 0) {
-          <p class="icons__empty">No matches in this category.</p>
+          <p class="icon-grid__empty">No matches in this category.</p>
         }
       </div>
-    </div>
+    </section>
   }
 </mat-dialog-content>
-<mat-dialog-actions align="end">
+
+<mat-dialog-actions class="dialog-actions" align="end">
   @if (data.mode === 'edit') {
-    <button mat-button color="warn" (click)="remove()">Delete</button>
+    <button mat-button class="dialog-action dialog-action--danger" (click)="remove()">Delete</button>
   }
-  <button mat-button (click)="cancel()">Cancel</button>
-  <button mat-flat-button color="primary" (click)="save()">Save</button>
+  <button mat-button class="dialog-action" (click)="cancel()">Cancel</button>
+  <button mat-flat-button class="dialog-action dialog-action--primary" (click)="save()">Save</button>
 </mat-dialog-actions>

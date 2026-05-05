@@ -209,96 +209,109 @@ mat-chip-listbox {
   }
 }
 
-// ─────── World grid ───────
-// CSS Grid with dense packing so variable-size tiles don't staircase.
+// ─────── World grid (atlas plates) ───────
+// Uniform tiles let the typography do the hierarchy. Many thumbnails are
+// mostly water (worlds whose default starting view is over open ocean), so
+// we lean on the editorial caption to carry identity.
 .worlds {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-lg);
 }
 
 .world-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  grid-auto-rows: 180px;
-  grid-auto-flow: dense;
-  gap: var(--space-sm);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  column-gap: var(--space-lg);
+  row-gap: var(--space-2xl);
   width: 100%;
 }
 
 .world-tile {
-  position: relative;
-  display: block;
-  overflow: hidden;
-  border-radius: var(--ofm-radius-sm);
-  background: var(--paper-edge);
-  background-size: cover;
-  background-position: center;
-  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   text-decoration: none;
-  cursor: pointer;
+  background-image: none;
+  background-size: auto;
+  background-repeat: repeat;
+  background-position: 0 0;
+  color: inherit;
   isolation: isolate;
-  outline: var(--ofm-rule-w) solid var(--ink-rule);
-  outline-offset: -0.5px;
-  transition: outline-color var(--ofm-dur-2) var(--ofm-ease),
-              transform var(--ofm-dur-2) var(--ofm-ease);
 
-  // Quieter bottom wash — ink, not pure black, so the wash sits in-key with
-  // the warm dark shell instead of punching through it.
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      to bottom,
-      oklch(0.10 0.014 55 / 0) 40%,
-      oklch(0.10 0.014 55 / 0.62) 100%
-    );
+  // The art block: a square portrait inside a chart-room frame. Corners
+  // are always on — they're cartographic structure, not a hover affordance.
+  &__art {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    margin: 0;
+    background: var(--paper-edge) center / cover no-repeat;
+    outline: var(--ofm-rule-w) solid var(--ink-rule);
+    outline-offset: -0.5px;
+    overflow: hidden;
+    transition: outline-color var(--ofm-dur-2) var(--ofm-ease);
+
+    &::before, &::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border: var(--ofm-rule-w-bold) solid oklch(0.95 0.012 80 / 0.42);
+      pointer-events: none;
+      transition: border-color var(--ofm-dur-2) var(--ofm-ease);
+    }
+    &::before { top: 6px; left: 6px;  border-right: 0; border-bottom: 0; }
+    &::after  { top: 6px; right: 6px; border-left: 0;  border-bottom: 0; }
   }
 
-  // L-corner ticks evoke the chart-room frame on the reference site.
-  &::before {
-    content: "";
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 10px;
-    height: 10px;
-    border: var(--ofm-rule-w-bold) solid oklch(0.95 0.012 80 / 0.55);
-    border-right: 0;
-    border-bottom: 0;
-    z-index: 2;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity var(--ofm-dur-2) var(--ofm-ease);
+  &__caption {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    padding-top: var(--space-2xs);
+    border-top: var(--ofm-rule-w) solid var(--ink-rule-faint);
   }
 
   &__name {
-    position: absolute;
-    inset: auto 0 0 0;
-    z-index: 1;
-    padding: var(--space-md);
     font-family: var(--ofm-font-display);
-    font-size: var(--ofm-size-lg);
-    font-weight: 600;
+    font-size: var(--ofm-size-md);
+    font-weight: 500;
     font-style: italic;
     letter-spacing: -0.012em;
     line-height: var(--ofm-lead-tight);
-    color: oklch(0.98 0.01 80);
-    text-shadow: 0 1px 10px oklch(0 0 0 / 0.55);
+    color: var(--ink);
+    margin: 0;
+    text-wrap: balance;
+    transition: color var(--ofm-dur-1) var(--ofm-ease);
+  }
+
+  &__dateline {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.45em;
+    font-family: var(--ofm-font-mono);
+    font-size: var(--ofm-size-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    line-height: var(--ofm-lead-tight);
+
+    span[aria-hidden] { color: var(--ink-rule); }
   }
 
   &:hover {
-    outline-color: var(--cinnabar);
-    transform: translateY(-1px);
-
-    &::before { opacity: 1; }
+    .world-tile__art { outline-color: var(--cinnabar); }
+    .world-tile__art::before,
+    .world-tile__art::after { border-color: oklch(0.95 0.012 80 / 0.85); }
+    .world-tile__name { color: var(--cinnabar-ink); }
   }
 
   &:focus-visible {
-    outline: 2px solid var(--cinnabar);
-    outline-offset: 3px;
+    outline: none;
+    .world-tile__art {
+      outline: 2px solid var(--cinnabar);
+      outline-offset: 3px;
+    }
   }
 }

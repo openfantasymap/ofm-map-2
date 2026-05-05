@@ -48,15 +48,22 @@
             <section class="worlds" aria-label="Worlds">
                 <p class="mark">The Worlds</p>
                 <div id="ohm_timelines" class="world-grid">
-                    <a *ngFor="let tl of seen_timelines"
+                    <a *ngFor="let tl of seen_timelines; let i = index"
                        class="world-tile"
-                       [style.background]="tl.bg"
-                       [style.color]="tl.color"
-                       [style.background-image]="bgImage(tl)"
-                       [style.grid-column]="'span ' + (tl.size || 1)"
-                       [style.grid-row]="'span ' + (tl.size || 1)"
                        [routerLink]="[tl.url, tl.date, tl.base.zoom, tl.base.lat, tl.base.lng, 0, 0]">
-                        <span class="world-tile__name">{{tl.name}}</span>
+                        <figure class="world-tile__art" [style.background]="tl.bg" [style.background-image]="bgImage(tl)" aria-hidden="true"></figure>
+                        <figcaption class="world-tile__caption">
+                            <h3 class="world-tile__name">{{tl.name}}</h3>
+                            <p class="world-tile__dateline">
+                                <span>Plate&nbsp;{{romanize(i + 1)}}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>{{tl.date}}</span>
+                                <ng-container *ngIf="primaryTags(tl) as t">
+                                    <span aria-hidden="true">·</span>
+                                    <span>{{t}}</span>
+                                </ng-container>
+                            </p>
+                        </figcaption>
                     </a>
                 </div>
             </section>
