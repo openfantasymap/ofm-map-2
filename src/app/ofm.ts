@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { concatMap } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { catchError, concatMap } from 'rxjs/operators';
 import { OhmService } from './ohm';
 
 @Injectable({
@@ -11,30 +11,44 @@ export class OfmService extends OhmService{
 
   constructor(
     http: HttpClient
-  ) { 
+  ) {
     super(http);
   }
 
-  getTimelines(){
+  // env.json is generated at container start by docker-entrypoint.sh; in
+  // dev the file ships from public/assets/. If it's missing or doesn't
+  // parse for any reason, fall back to an empty config so the rest of the
+  // chain (timelines / tags fetch) still fires. Otherwise the world picker
+  // stays empty forever.
+  private env(): Observable<any> {
     return this.http.get('/assets/env.json').pipe(
+      catchError((err) => {
+        console.warn('[ofm] env.json unavailable, continuing without TAG', err);
+        return of({});
+      }),
+    );
+  }
+
+  getTimelines(){
+    return this.env().pipe(
       concatMap((data:any)=>{
         var append = "";
-        if (Object.keys(data).indexOf('TAG') >= 0){
+        if (data && Object.keys(data).indexOf('TAG') >= 0){
           append = "?tag="+data.TAG;
         }
-        return this.http.get('//static.fantasymaps.org/timelines.json'+append);
+        return this.http.get('https://static.fantasymaps.org/timelines.json'+append);
       }));
   }
 
-  
+
   getTags(){
-    return this.http.get('/assets/env.json').pipe(
+    return this.env().pipe(
       concatMap((data:any)=>{
         var append = "";
-        if (Object.keys(data).indexOf('TAG') >= 0){
+        if (data && Object.keys(data).indexOf('TAG') >= 0){
           append = "?tag="+data.TAG;
         }
-        return this.http.get('//static.fantasymaps.org/tags.json'+append);
+        return this.http.get('https://static.fantasymaps.org/tags.json'+append);
       }));
   }
 

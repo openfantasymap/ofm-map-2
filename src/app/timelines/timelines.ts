@@ -44,29 +44,50 @@ selected_tags!: string[];
   }
 
   ngOnInit(): void {
-    this.ht.get('assets/info.json').subscribe((data:any) => {
-      this.infoData = data;
-      this.cdr.markForCheck();
-    })
-    this.ofm.getTimelines().subscribe((data:any) => {
-      this.timelines = data;
-      this.seen_timelines = data;
-      this.cdr.markForCheck();
-    })
+    this.ht.get('assets/info.json').subscribe({
+      next: (data:any) => {
+        this.infoData = data;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.warn('[timelines] info.json failed', err),
+    });
 
-    this.ofm.getTags().subscribe((data:any)=>{
-      this.tags = data.map((x:any)=>{
-        return {label:x, selected:true}
-      });
-      this.selected_tags = data;
-    })
+    this.ofm.getTimelines().subscribe({
+      next: (data:any) => {
+        const list = Array.isArray(data) ? data : [];
+        if (!list.length) {
+          console.warn('[timelines] getTimelines returned no items', data);
+        }
+        this.timelines = list;
+        this.seen_timelines = list;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('[timelines] getTimelines failed', err);
+        // Show an empty grid rather than the indefinite-standby state.
+        this.timelines = [];
+        this.seen_timelines = [];
+        this.cdr.markForCheck();
+      },
+    });
 
-    
-    setTimeout(()=>{
-      this.stgl.nativeElement.click();
-      setTimeout(()=>{
-        this.stgl.nativeElement.click();
-      },100);
+    this.ofm.getTags().subscribe({
+      next: (data:any) => {
+        const list = Array.isArray(data) ? data : [];
+        this.tags = list.map((x:any) => ({ label: x, selected: true }));
+        this.selected_tags = list;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.warn('[timelines] getTags failed', err),
+    });
+
+    setTimeout(() => {
+      try {
+        this.stgl?.nativeElement?.click();
+        setTimeout(() => this.stgl?.nativeElement?.click(), 100);
+      } catch (err) {
+        console.warn('[timelines] sidebar warm-up click failed', err);
+      }
     }, 100);
   }
 
