@@ -1,0 +1,52 @@
+// Same exhibit-caption structure as the annotation dialog.
+:host { display: block; max-width: 460px; }
+
+.dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule);
+
+  // mat-dialog-title reserves a 40px baseline strut we don't want above the mark.
+  &::before { display: none; }
+
+  .mark { color: var(--ink-3); }
+
+  &__title {
+    margin: 0;
+    font-family: var(--ofm-font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: var(--ofm-size-xl);
+    line-height: var(--ofm-lead-tight);
+    color: var(--ink);
+  }
+}
+
+.dialog-body {
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  p { margin: 0; line-height: var(--ofm-lead-body); color: var(--ink); }
+  .aside { color: var(--ink-2); font-size: var(--ofm-size-xs); }
+  a { color: var(--cinnabar); }
+}
+
+.manual { background: transparent; box-shadow: none; border-top: var(--ofm-rule-w) solid var(--ink-rule-faint); }
+
+.dialog-actions {
+  padding: var(--space-sm) var(--space-lg) var(--space-md);
+  border-top: var(--ofm-rule-w) solid var(--ink-rule-faint);
+  margin: 0;
+}
+
+.dialog-action--primary {
+  --mdc-filled-button-container-color: var(--ofm-accent);
+  --mdc-filled-button-label-text-color: oklch(0.16 0.01 55);
+}
+
+.wide { width: 100%; display: block; }

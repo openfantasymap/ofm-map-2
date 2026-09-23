@@ -12,7 +12,7 @@ FROM nginx:alpine
 
 WORKDIR /usr/share/nginx/html/
 
-COPY --from=build /app/dist/out/ .
+COPY --from=build /app/dist/out/browser .
 
 RUN chmod 777 *
 

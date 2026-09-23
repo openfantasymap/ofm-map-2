@@ -12,7 +12,7 @@ ng serve                          # dev server on :4200 (dev config is default f
 ng build                          # production build → dist/
 ng build --configuration development
 ng test                           # Karma + Jasmine
-ng test --include='**/map.spec.ts'   # single spec
+ng test --include='**/cone.spec.ts'  # single spec
 ```
 
 Docker image build (publishes to `ofdistantworlds/map`):
@@ -20,6 +20,8 @@ Docker image build (publishes to `ofdistantworlds/map`):
 ```bash
 ./build.sh          # docker buildx build + docker push
 ```
+
+Specs need `provideZonelessChangeDetection()` in `TestBed` (the app runs without Zone.js). `MapComponent` has no spec: it depends on the CDN globals (MapLibre, vis, turf).
 
 There is no lint script — the repo has no ESLint config. Prettier is configured inline in `package.json` for HTML only.
 
@@ -61,8 +63,26 @@ When `MapComponent` loads, it fetches `//static.fantasymaps.org/<timeline>/map.j
 - `ofm_meta.parentMap` / `parentLocation` — zoom-out-to-warp to the parent world
 - `ofm_meta.distance_multiplier`, `distance_unit`, `speeds[]` — drive the measuring tool (turf.length × multiplier, plus fantasy-speed conversions)
 - `ofm_meta.type === "starbase"` — swaps the `{atDate}` pattern for `{deck}` on `base`/`walls`/`areas` sources, so changing deck re-fetches those layers
+- `ofm_meta.geomqtt` — `{ url, set?, zoom? }` to enable live agent positions over [geomqtt](https://github.com/openfantasymap/geomqtt). When present, `MapComponent` instantiates a `GeomqttLayer` (`src/app/map/geomqtt-layer.ts`) that subscribes to viewport tiles and pushes a `FeatureCollection` to the existing `gaiaAgentsPovs` source — replacing the 5s polling loop. `set` defaults to `agents-{timeline}`, `zoom` to 6 (the lowest enrich zoom; gives full-viewport coverage with at most ~4 subscriptions). MQTT.js v5 is loaded from `unpkg.com/mqtt@5` in `index.html`. Subscriptions are diffed on `moveend`/`zoomend`; source updates are throttled to one per animation frame.
 
 If you add a behavior, prefer extending `ofm_meta` (server-owned) over hardcoding.
+
+`ofm_meta` is also read from the loaded style's `metadata.ofm` on MapLibre `load` when the separate `getMap()` request hasn't answered yet, so load-time setup (`registerGaiaLayers`, `registerClickLayers`, …) never sees an empty object.
+
+### World guide (`WORLD.md`)
+
+A world may ship `/srv/ofm/<world>/WORLD.md`. `OfmService.getWorldGuide()` fetches it from `staticfiles.fantasymaps.org` (plain nginx over `/srv/ofm`) and emits `null` on 404/empty. When present, `MapComponent.worldGuide` holds the rendered HTML and the toolbar/left sidebar offer a "World guide" plate (`ractive() === 'world'`, wider sidebar). Markdown is rendered by `marked` from the CDN (`index.html`); Angular's `[innerHTML]` sanitizer strips scripts. Worlds without the file show no entry point.
+
+### GaiaWM "eye on the world" + OpenRouter
+
+The eye (`.gaiawm` button → `drawWedge()`) **requires an OpenRouter account**. Without a key it opens `GaiaConnectDialog` (`gaia/connect/`) instead of drawing:
+
+- **Login** is OpenRouter's OAuth PKCE flow (`OpenRouterService.login()` in `src/app/openrouter.ts`): redirect to `openrouter.ai/auth`, return to the `auth/openrouter` route (`OpenRouterCallback`), exchange the code at `/api/v1/auth/keys`, then navigate back to the map URL saved in sessionStorage. A pasted key is accepted as a fallback.
+- The key lives in localStorage (`ofm-openrouter-key`) and is **only sent to openrouter.ai** — never to the Gaia backend. A 401 signs the user out.
+- Flow: two clicks draw the cone (`gaia/cone.ts` maths) → `POST api.gaia.fantasymaps.org/<world>/context?describe=only&image_description=true` returns description + image prompt → the `Response` dialog opens and the browser renders the prompt through OpenRouter chat completions with `modalities: ['image','text']` (default model `google/gemini-2.5-flash-image`, changeable in the GaiaWM panel).
+- History: `GaiaStorage` keeps query text in localStorage (`queries`) and rendered images in IndexedDB (`ofm-gaia`/`images`, keyed by query id) — data: URLs are too big for localStorage.
+
+The backend's own `image=<key>` path (OpenAI, key in the query string) is no longer used by this app.
 
 ### Deployment-time env
 
@@ -71,8 +91,8 @@ The Docker image's `docker-entrypoint.sh` runs `jq -n env > ./assets/env.json` a
 ### Known rough edges (leave alone unless fixing)
 
 - `warpTo()` uses `setTimeout` + `window.location.reload()` to force a full reload across worlds; this is intentional (MapLibre style swaps across projections were flaky).
-- `showOverlays()` is mostly commented-out legacy OHM layers. Leave commented blocks unless the user explicitly asks to clean them up.
-- `MapComponent.ts` is declared as `any` and only read by the dev-mode branch of `transformRequest`; it is never assigned, so the dev-mode tile-URL rewrite currently produces bogus `undefined<timeline>/...` URLs. If you need a local tile proxy in dev, wire it up explicitly — don't trust this branch as-is.
+- The measuring tool (`startDistance`/`onMeasureClick`), the legend (`toggleLayer`) and the `clickLayers` info state (`p`/`showInfo`) still work in code but currently have **no UI entry point** in `map.html`.
+- There is no dev-mode tile proxy; `transformRequest` only substitutes `{atDate}`/`{deck}`. If you need one, wire it up explicitly.
 - Do not reintroduce a `maplibregl.accessToken` assignment — MapLibre ignores it, and a committed Mapbox `pk.*` token triggers GitHub push protection.
 
 ## Design Context

@@ -475,3 +475,57 @@ mat-sidenav-container {
   &::before { top: 8px; left: 8px;  border-right: 0; border-bottom: 0; }
   &::after  { top: 8px; right: 8px; border-left: 0;  border-bottom: 0; }
 }
+
+// ─────── World guide (WORLD.md) ───────
+// Rendered Markdown reads as a gazetteer page: Spectral headings, body in
+// Public Sans, hairline-ruled tables. Wider than the other plates because
+// guides carry tables.
+.sidebar.sidebar--wide { width: min(560px, 92vw); }
+
+.world-guide {
+  padding: 0 var(--space-lg) var(--space-2xl);
+  color: var(--ink);
+  font-size: var(--ofm-size-sm);
+  line-height: var(--ofm-lead-body);
+
+  :is(h1, h2, h3) {
+    font-family: var(--ofm-font-display);
+    font-weight: 500;
+    line-height: var(--ofm-lead-tight);
+    margin: var(--space-lg) 0 var(--space-xs);
+  }
+  h1 { font-style: italic; font-size: var(--ofm-size-xl); margin-top: var(--space-sm); }
+  h2 { font-size: var(--ofm-size-lg); padding-top: var(--space-sm); border-top: var(--ofm-rule-w) solid var(--ink-rule); }
+  h3 { font-size: var(--ofm-size-md); }
+
+  p, ul, ol { margin: 0 0 var(--space-sm); }
+  li { margin-bottom: var(--space-2xs); }
+  em { color: var(--ink-2); }
+  a { color: var(--cinnabar); }
+  code {
+    font-family: var(--ofm-font-mono);
+    font-size: 0.9em;
+    color: var(--ink-2);
+  }
+  pre { white-space: pre-wrap; font-family: var(--ofm-font-mono); font-size: var(--ofm-size-xs); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 var(--space-md);
+    font-size: var(--ofm-size-xs);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    text-align: left;
+    font-family: var(--ofm-font-mono);
+    font-weight: 400;
+    font-size: var(--ofm-size-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: var(--ofm-rule-w-bold) solid var(--ink-rule);
+  }
+  th, td { padding: var(--space-2xs) var(--space-xs) var(--space-2xs) 0; vertical-align: top; }
+  td { border-bottom: var(--ofm-rule-w) solid var(--ink-rule-faint); }
+}

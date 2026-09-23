@@ -1,0 +1,78 @@
+:host { display: block; max-width: 720px; }
+
+.dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+  border-bottom: var(--ofm-rule-w) solid var(--ink-rule);
+
+  // mat-dialog-title reserves a 40px baseline strut we don't want above the mark.
+  &::before { display: none; }
+
+  .mark { color: var(--ink-3); }
+
+  &__title {
+    margin: 0;
+    font-family: var(--ofm-font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: var(--ofm-size-xl);
+    line-height: var(--ofm-lead-tight);
+    color: var(--ink);
+  }
+}
+
+.dialog-body {
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.view {
+  margin: 0;
+
+  img { display: block; width: 100%; height: auto; border: var(--ofm-rule-w) solid var(--ink-rule); }
+
+  &__pending {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    aspect-ratio: 16 / 9;
+    padding: var(--space-lg);
+    border: var(--ofm-rule-w) dashed var(--ink-rule);
+    color: var(--ink-3);
+    text-align: center;
+
+    p { margin: 0; max-width: 50ch; color: var(--ink-2); font-size: var(--ofm-size-xs); }
+  }
+
+  &:empty { display: none; }
+}
+
+.description {
+  margin: 0;
+  font-family: var(--ofm-font-display);
+  font-size: var(--ofm-size-md);
+  line-height: var(--ofm-lead-loose);
+  color: var(--ink);
+  white-space: pre-line;
+}
+
+.prompt {
+  background: transparent;
+  box-shadow: none;
+  border-top: var(--ofm-rule-w) solid var(--ink-rule-faint);
+
+  p { margin: 0; color: var(--ink-2); font-size: var(--ofm-size-xs); line-height: var(--ofm-lead-body); }
+}
+
+.dialog-actions {
+  padding: var(--space-sm) var(--space-lg) var(--space-md);
+  border-top: var(--ofm-rule-w) solid var(--ink-rule-faint);
+  margin: 0;
+}

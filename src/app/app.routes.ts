@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 import { Timelines } from './timelines/timelines';
 import { MapComponent } from './map/map';
+import { OpenRouterCallback } from './openrouter-callback';
 
 export const routes: Routes = [
   { path: '', component: Timelines},
+  // OAuth PKCE return leg for the GaiaWM image key (see openrouter.ts)
+  { path: 'auth/openrouter', component: OpenRouterCallback },
   { path: ':timeline', redirectTo: ':timeline/866/4/43.67/1.57/0/0', pathMatch: 'full' },
   // Backward-compatible 5- and 6-segment forms (pitch/bearing default to 0)
   { path: ':timeline/:year/:z/:y/:x', component: MapComponent },

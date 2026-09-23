@@ -1,16 +1,12 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { Ohm } from './ohm';
+import { OhmService } from './ohm';
 
-describe('Ohm', () => {
-  let service: Ohm;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(Ohm);
-  });
-
+describe('OhmService', () => {
   it('should be created', () => {
-    expect(service).toBeTruthy();
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideHttpClient()] });
+    expect(TestBed.inject(OhmService)).toBeTruthy();
   });
 });

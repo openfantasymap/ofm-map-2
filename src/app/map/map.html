@@ -4,10 +4,13 @@
     <span class="spacer"></span>
     <a href="https://www.patreon.com/openfantasymap" target="_blank" rel="noopener" title="Help us keep this project alive" aria-label="Support on Patreon" mat-icon-button><mat-icon><img src="/assets/images/Digital-Patreon-Logo_FieryCoral.png" alt=""></mat-icon></a>
     <a href="https://foundryvtt.com/packages/ofm-map-canvas" target="_blank" rel="noopener" title="Use this and other OFM maps on FoundryVTT" aria-label="Open on FoundryVTT" mat-icon-button><mat-icon><img src="/assets/images/fvtt-solid-512.png" alt=""></mat-icon></a>
+    @if (worldGuide()) {
+    <button mat-icon-button aria-label="World guide" (click)="ractive.set('world'); rbar.open()" class="hidesmall" title="World guide"><mat-icon>menu_book</mat-icon></button>
+    }
     <button mat-icon-button aria-label="Saved views" (click)="ractive.set('views'); rbar.open()" class="hidesmall" title="Saved views"><mat-icon>bookmark</mat-icon></button>
     <button mat-icon-button aria-label="Imported overlays" (click)="ractive.set('overlays'); rbar.open()" class="hidesmall" title="Overlays"><mat-icon>layers</mat-icon></button>
     <button mat-icon-button aria-label="Annotate this map" (click)="ractive.set('annotations'); rbar.open()" class="hidesmall"><mat-icon>edit_location_alt</mat-icon></button>
-    <button mat-icon-button aria-label="Share this view" (click)="ractive.set('share'); rbar.toggle()" class="hidesmall"><mat-icon>share</mat-icon></button>
+    <button mat-icon-button aria-label="Share this view" (click)="ractive.set('share'); rbar.open(); copy_url()" class="hidesmall"><mat-icon>share</mat-icon></button>
     <button mat-button aria-label="GaiaWM context" (click)="ractive.set('gaia'); rbar.toggle()" class="hidesmall gaiabar">
         @if (gaialoading() === true){
         <mat-progress-spinner mode="indeterminate" diameter="50" />
@@ -22,6 +25,9 @@
 
         <mat-nav-list>
             <a mat-list-item href="..">All fantasy worlds</a>
+            @if (worldGuide()) {
+            <a mat-list-item (click)="lbar.close(); ractive.set('world'); rbar.open()">World guide</a>
+            }
             <div *ngIf="ofm_meta">
                 <div *ngIf="ofm_meta.type === 'starbase'">
                     <div mat-subheader>Decks</div>
@@ -41,33 +47,73 @@
             </div>
         </mat-nav-list>
     </mat-sidenav>
-    <mat-sidenav class="sidebar" mode="over" #rbar position="end">
-        @if(ractive() === 'gaia'){
-        <mat-toolbar>
-            <h1>GaiaWM Context</h1>
-            <span class="spacer"></span>
-            <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
-        </mat-toolbar>
-        <mat-accordion>
-            <mat-expansion-panel>
-                <mat-expansion-panel-header>
-                    <mat-panel-title>Settings</mat-panel-title>
-                </mat-expansion-panel-header>
-                <mat-slide-toggle (toggleChange)="toggleGaiaLayers()">Show on Map</mat-slide-toggle>
-                <mat-slide-toggle (toggleChange)="toggleGaiaAgentsLayer()">Show Agents</mat-slide-toggle>
-            </mat-expansion-panel>
-        </mat-accordion>
+    <mat-sidenav class="sidebar" [class.sidebar--wide]="ractive() === 'world'" mode="over" #rbar position="end">
+    @if(ractive() === 'gaia'){
+        <header class="panel-head">
+            <div class="panel-head__top">
+                <span class="mark">GaiaWM</span>
+                <span class="spacer"></span>
+                <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()"><mat-icon>close</mat-icon></button>
+            </div>
+            <h1 class="panel-head__title">Eye on the world</h1>
+            <p class="panel-head__lede">{{ gaialist().length }} view{{ gaialist().length === 1 ? '' : 's' }} of this world</p>
+        </header>
 
-        <div>
-            @for(i of gaialist();track i.id){
-                <div class="row">
-                    <button mat-icon-button aria-label="View description" (click)="showGaia(i.properties)"><mat-icon>article</mat-icon></button>
-                    <span>{{i.properties.description.substring(0,20)}}</span>
-                    <div class="spacer"></div>
-                    <button mat-icon-button aria-label="Locate on map"><mat-icon>location_on</mat-icon></button>
+        <div class="panel-tools">
+            @if (openrouter.key()) {
+                <p class="panel-hint">Painting with your OpenRouter account.</p>
+                <mat-form-field appearance="outline" class="panel-input">
+                    <mat-label>Image model</mat-label>
+                    <input matInput [ngModel]="openrouter.imageModel()" (change)="setImageModel($any($event.target).value)" />
+                </mat-form-field>
+                <div class="mode-row">
+                    <button type="button" (click)="drawWedge(); rbar.close()">Look around</button>
+                    <span class="mode-row__sep" aria-hidden="true">·</span>
+                    <button type="button" (click)="openrouter.logout()">Disconnect</button>
                 </div>
+            } @else {
+                <p class="panel-hint">An OpenRouter account is required: the view is painted by an image model billed to you.</p>
+                <button mat-flat-button color="primary" class="panel-cta" (click)="connectOpenRouter()">Connect OpenRouter</button>
             }
+            <label class="visibility-toggle">
+                <mat-slide-toggle [checked]="showGaiaLayers" (toggleChange)="toggleGaiaLayers()"></mat-slide-toggle>
+                <span class="mark">Show views on map</span>
+            </label>
+            <label class="visibility-toggle">
+                <mat-slide-toggle [checked]="showGaiaAgentsLayer" (toggleChange)="toggleGaiaAgentsLayer()"></mat-slide-toggle>
+                <span class="mark">Show agents</span>
+            </label>
         </div>
+
+        @if (gaialist().length === 0) {
+            <p class="panel-empty">No views yet. Use the eye on the map, click where you stand, then click where you look.</p>
+        } @else {
+            <ol class="entries">
+                @for (q of gaialist(); track q.id; let i = $index) {
+                    <li class="entry">
+                        <button class="entry__locate" mat-icon-button (click)="locateGaia(q)" aria-label="Locate on map"><mat-icon class="entry__glyph">visibility</mat-icon></button>
+                        <div class="entry__body">
+                            <h2 class="entry__title">{{ (q.properties.description || 'Untitled view') | slice:0:60 }}…</h2>
+                            <p class="entry__dateline"><span>№&nbsp;{{ romanize(i + 1) }}</span> <span aria-hidden="true">·</span> <span>{{ q.created | date:'d MMM y' }}</span></p>
+                        </div>
+                        <div class="entry__actions">
+                            <button mat-icon-button (click)="showGaia(q)" aria-label="Read"><mat-icon>article</mat-icon></button>
+                            <button mat-icon-button (click)="deleteGaia(q)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+    }
+    @if(ractive() === 'world'){
+        <header class="panel-head">
+            <div class="panel-head__top">
+                <span class="mark">World guide</span>
+                <span class="spacer"></span>
+                <button mat-icon-button aria-label="Close" (click)="ractive.set('');rbar.close()"><mat-icon>close</mat-icon></button>
+            </div>
+        </header>
+        <article class="world-guide" [innerHTML]="worldGuide()"></article>
     }
     @if(ractive() === 'share'){
         <mat-toolbar>
@@ -75,6 +121,7 @@
             <span class="spacer"></span>
             <button mat-icon-button aria-label="Close" (click)="rbar.close()" class="hidesmall"><mat-icon>close</mat-icon></button>
         </mat-toolbar>
+        @if (!share_link) { <p class="panel-hint">Preparing a short link…</p> }
 
         <mat-list>
             <a mat-list-item href="https://profile.fantasymaps.org/?use={{share_link}}"><mat-icon><img src="/assets/images/fvtt-solid-512.png" alt="" style="width:36px; left:-6px; top: -6px; position: relative;"></mat-icon>Use on FoundryVTT</a>

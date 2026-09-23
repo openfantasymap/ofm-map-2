@@ -1,33 +1,39 @@
-<h2 mat-dialog-title>Gaia Response</h2>
-<mat-dialog-content>
-  <mat-accordion>
-  <mat-expansion-panel expanded="true">
-    <mat-expansion-panel-header>
-      <mat-panel-title> The description of the world </mat-panel-title>
-    </mat-expansion-panel-header>
-    <p>
-    {{data.description}}
-    </p>
-  </mat-expansion-panel>
-  <mat-expansion-panel >
-    <mat-expansion-panel-header>
-      <mat-panel-title> The image prompt </mat-panel-title>
-    </mat-expansion-panel-header>
-    <p>
-    {{data.image_prompt}}
-    </p>
-  </mat-expansion-panel>
-  <mat-expansion-panel>
-    <mat-expansion-panel-header>
-      <mat-panel-title> The rendered image </mat-panel-title>
-    </mat-expansion-panel-header>
-    <img src="{{data.image}}" />
-  </mat-expansion-panel>
-</mat-accordion>
+<header class="dialog-head" mat-dialog-title>
+  <span class="mark">Eye on the world</span>
+  <h2 class="dialog-head__title">What can be seen</h2>
+</header>
 
+<mat-dialog-content class="dialog-body">
+  <figure class="view">
+    @switch (data.imageState()) {
+      @case ('ready') {
+        <img [src]="data.image()" alt="Painted view from this point" />
+      }
+      @case ('loading') {
+        <div class="view__pending"><mat-progress-spinner mode="indeterminate" diameter="32" /><span class="mark">Painting the view…</span></div>
+      }
+      @case ('error') {
+        <div class="view__pending"><span class="mark">The painting failed</span><p>{{ data.imageError() }}</p></div>
+      }
+    }
+  </figure>
 
-  
+  <p class="description">{{ data.description }}</p>
+
+  @if (data.image_prompt) {
+    <mat-expansion-panel class="prompt">
+      <mat-expansion-panel-header><mat-panel-title>Image prompt</mat-panel-title></mat-expansion-panel-header>
+      <p>{{ data.image_prompt }}</p>
+    </mat-expansion-panel>
+  }
 </mat-dialog-content>
-<mat-dialog-actions>
-  <button matButton (click)="onNoClick()">Close</button>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  @if (data.imageState() === 'ready') {
+    <a matButton [href]="data.image()" download="gaia-view.png">Download</a>
+  }
+  @if (data.paint && data.imageState() !== 'loading') {
+    <button matButton (click)="data.paint()">{{ data.imageState() === 'none' ? 'Paint the view' : 'Repaint' }}</button>
+  }
+  <button matButton mat-dialog-close cdkFocusInitial>Close</button>
 </mat-dialog-actions>

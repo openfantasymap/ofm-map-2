@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { catchError, concatMap } from 'rxjs/operators';
+import { catchError, concatMap, map } from 'rxjs/operators';
 import { OhmService } from './ohm';
 
 @Injectable({
@@ -53,11 +53,23 @@ export class OfmService extends OhmService{
   }
 
   override getEvents(name: string, date: any, amount?: number): Observable<any> {
-    return this.http.get('//static.fantasymaps.org/'+name+'/events.json?around='+date+"&n="+amount)
+    return this.http.get('https://static.fantasymaps.org/'+name+'/events.json?around='+date+"&n="+amount)
   }
   s: any;
 
   getMap(name: string){
-    return this.http.get('//static.fantasymaps.org/'+name+'/map.json');
+    return this.http.get('https://static.fantasymaps.org/'+name+'/map.json');
+  }
+
+  /**
+   * Optional per-world guide (`/srv/ofm/<world>/WORLD.md`), served verbatim by
+   * the staticfiles host. Emits the Markdown source, or null when the world
+   * has none (404) or it can't be fetched.
+   */
+  getWorldGuide(name: string): Observable<string | null> {
+    return this.http.get('https://staticfiles.fantasymaps.org/'+encodeURIComponent(name)+'/WORLD.md', { responseType: 'text' }).pipe(
+      map(text => text?.trim() ? text : null),
+      catchError(() => of(null)),
+    );
   }
 }

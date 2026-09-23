@@ -1,0 +1,1 @@
+docker buildx  build --load  -t ofdistantworlds/map . && docker push ofdistantworlds/map

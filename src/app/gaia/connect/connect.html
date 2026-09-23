@@ -1,0 +1,32 @@
+<header class="dialog-head" mat-dialog-title>
+  <span class="mark">Eye on the world</span>
+  <h2 class="dialog-head__title">Connect OpenRouter</h2>
+</header>
+
+<mat-dialog-content class="dialog-body">
+  <p>
+    Gaia describes what a traveller would see from the point you choose, and an
+    image model paints the view. The painting runs on your own
+    <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a> account.
+  </p>
+  <p class="aside">
+    Link your account once. The key it creates stays in this browser and is only
+    ever sent to OpenRouter. You can disconnect it at any time from the GaiaWM panel.
+  </p>
+
+  <mat-expansion-panel class="manual">
+    <mat-expansion-panel-header>
+      <mat-panel-title>Use an existing key instead</mat-panel-title>
+    </mat-expansion-panel-header>
+    <mat-form-field class="wide" appearance="outline">
+      <mat-label>OpenRouter API key</mat-label>
+      <input matInput type="password" autocomplete="off" placeholder="sk-or-…" [(ngModel)]="pastedKey" (keydown.enter)="useKey()" />
+    </mat-form-field>
+    <button matButton (click)="useKey()" [disabled]="!pastedKey.trim()">Use this key</button>
+  </mat-expansion-panel>
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button matButton mat-dialog-close>Not now</button>
+  <button matButton="filled" class="dialog-action--primary" (click)="login()" cdkFocusInitial>Connect with OpenRouter</button>
+</mat-dialog-actions>

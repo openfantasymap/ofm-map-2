@@ -1,23 +1,22 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
-import { Date } from './date';
+import { DateComponent } from './date';
 
-describe('Date', () => {
-  let component: Date;
-  let fixture: ComponentFixture<Date>;
-
+describe('DateComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Date]
-    })
-    .compileComponents();
-
-    fixture = TestBed.createComponent(Date);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+      imports: [DateComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: MatDialogRef, useValue: { close: () => {} } },
+        { provide: MAT_DIALOG_DATA, useValue: 1182.5 },
+      ],
+    }).compileComponents();
   });
 
   it('should create', () => {
-    expect(component).toBeTruthy();
+    expect(TestBed.createComponent(DateComponent).componentInstance).toBeTruthy();
   });
 });

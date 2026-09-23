@@ -1,8 +1,9 @@
-import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, isDevMode, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, signal, ViewChild } from '@angular/core';
+import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, KeyValueDiffers, OnDestroy, OnInit, Pipe, PipeTransform, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import {MatSidenav, MatSidenavModule} from '@angular/material/sidenav';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import {MatDialog, MatDialogModule} from '@angular/material/dialog';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { OfmService } from '../ofm';
 import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -18,23 +19,26 @@ import { ShareDirective } from '../share';
 import { NicedatePipe } from '../nicedate-pipe';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
-import { Response } from '../gaia/response/response';
-import { InputDialog } from '../gaia/input/input';
-import { GaiaStorage } from '../gaia-storage';
+import { GaiaView, ImageState, Response } from '../gaia/response/response';
+import { GaiaConnectDialog, GaiaConnectResult } from '../gaia/connect/connect';
+import { bearingDegrees, createCone, distanceMeters, LngLat } from '../gaia/cone';
+import { GaiaQuery, GaiaStorage } from '../gaia-storage';
+import { OpenRouterService } from '../openrouter';
 import { AnnotationsStorage, Annotation, AnnotationGeometry } from '../annotations-storage';
 import { AnnotationDialog } from '../annotation-dialog/annotation-dialog';
 import { ViewsStorage, SavedView } from '../views-storage';
+import { GeomqttLayer } from './geomqtt-layer';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import {MatSlideToggleModule} from '@angular/material/slide-toggle';
 import {MatExpansionModule} from '@angular/material/expansion';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
-//declare const mapboxgl;
 declare const maplibregl: any;
 declare const vis: any;
 declare const turf: any;
 declare const JSZip: any;
+declare const marked: any;
 
 @Pipe({
   name: 'deck',
@@ -72,7 +76,6 @@ export class DeckPipe implements PipeTransform{
 })
 export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
   map: any;
-  ts: any;
 
   layers: any = {}; 
   startstopicons: Map<string,string> = new Map<string,string>();
@@ -80,8 +83,6 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
   startstopicon = 'play_arrow';
   startstopstatus = 'stop';
   startstopInterval: any;
-
-  @Input() style: string = "";
 
   ofm_meta:any = {};
 
@@ -95,8 +96,6 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
   rels: any;
 
   atDate = 866.001;
-  atMacroDate = 800;
-  atMicroDate = 870;
 
   tl!: string;
 
@@ -110,211 +109,162 @@ export class MapComponent implements OnInit, AfterContentInit, OnDestroy {
 
   title: string = "";
 
-  @ViewChild('sharebar') sharebar!: MatSidenav;
   @ViewChild('screen') screen!: any;
 
-  share_link!: string;
+  share_link?: string;
 
+  /** Rendered WORLD.md for this world, or null when it has none. */
+  worldGuide = signal<string | null>(null);
 
   showInfo = false;
-  showSearch = false;
-  searchResults = []
-  showLegend = false;
-  showTools = false;
-  showShare = false;
 
-  /**
-   * GAIA
-   */
+  // ─── GaiaWM "eye on the world" ───
+  // Click a viewpoint, then a second point to set direction and reach. Gaia
+  // (api.gaia.fantasymaps.org) narrates the view; the picture is painted in
+  // the browser by an OpenRouter image model on the viewer's own key, which
+  // is required before the tool can be used.
   drawing = false;
-  center?: any = null;
-  radius?:number;
-  bearing?:number;
-  angle:number = 120; 
+  private coneCenter: LngLat | null = null;
+  private coneRadius = 0;
+  private coneBearing = 0;
+  coneAngle = 120;
+  gaialoading = signal(false);
+  gaialist = signal<GaiaQuery[]>([]);
+  readonly CONE_SOURCE_ID = 'gaia-cone-source';
+  readonly CONE_LAYER_ID = 'gaia-cone-layer';
 
-  circleLayerId = 'circle-preview';
-
-  SOURCE_ID = 'gaia-cone-source';
-  LAYER_ID = 'gaia-cone-layer';
-
- createCone(
-  center: any,
-  radius: number,
-  bearing: number,
-  angle: number,
-  steps = 48
-): any {
-  const coords: number[][] = [[center.lng, center.lat]];
-  const R = 6_371_000;
-
-  const start = bearing - angle / 2;
-  const end = bearing + angle / 2;
-
-  for (let i = 0; i <= steps; i++) {
-    const b = ((start + (i / steps) * (end - start)) * Math.PI) / 180;
-
-    const lat1 = (center.lat * Math.PI) / 180;
-    const lng1 = (center.lng * Math.PI) / 180;
-
-    const lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(radius / R) +
-      Math.cos(lat1) * Math.sin(radius / R) * Math.cos(b)
-    );
-
-    const lng2 =
-      lng1 +
-      Math.atan2(
-        Math.sin(b) * Math.sin(radius / R) * Math.cos(lat1),
-        Math.cos(radius / R) - Math.sin(lat1) * Math.sin(lat2)
-      );
-
-    coords.push([
-      (lng2 * 180) / Math.PI,
-      (lat2 * 180) / Math.PI
-    ]);
+  async drawWedge() {
+    if (!this.openrouter.key() && !(await this.connectOpenRouter())) return;
+    this.drawing = true;
+    this.coneCenter = null;
+    this.map.getCanvas().style.cursor = 'crosshair';
+    this.map.moveLayer(this.CONE_LAYER_ID);
   }
 
-  coords.push([center.lng, center.lat]);
-
-  return {
-    type: 'Feature',
-    geometry: {
-      type: 'Polygon',
-      coordinates: [coords]
-    },
-    properties: {}
-  };
-}
-
-
-  getDistanceMeters(a: any, b: any): number {
-    const R = 6_371_000;
-    const toRad = (d: number) => (d * Math.PI) / 180;
-
-    const dLat = toRad(b.lat - a.lat);
-    const dLng = toRad(b.lng - a.lng);
-
-    const lat1 = toRad(a.lat);
-    const lat2 = toRad(b.lat);
-
-    const x =
-      Math.sin(dLat / 2) ** 2 +
-      Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-
-    return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  /** Ask for an OpenRouter account. Resolves true when a key is usable right away. */
+  async connectOpenRouter(): Promise<boolean> {
+    const ref = this.md.open<GaiaConnectDialog, void, GaiaConnectResult>(GaiaConnectDialog, { width: '460px', maxWidth: '95vw' });
+    const res = await firstValueFrom(ref.afterClosed());
+    if (res?.action === 'key') {
+      this.openrouter.setKey(res.key);
+      return true;
+    }
+    if (res?.action === 'login') await this.openrouter.login(this.l.path());
+    return false;
   }
 
-  getBearing(a: any, b: any): number {
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const toDeg = (r: number) => (r * 180) / Math.PI;
-
-    const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
-    const x =
-      Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
-      Math.sin(toRad(a.lat)) *
-        Math.cos(toRad(b.lat)) *
-        Math.cos(toRad(b.lng - a.lng));
-
-    return (toDeg(Math.atan2(y, x)) + 360) % 360;
-  }
-
-  upsertCone(map: any, data: any) {
-    if (map.getSource(this.SOURCE_ID)) {
-      (map.getSource(this.SOURCE_ID)).setData(data);
-    }  
-  }
-gaialoading = signal(false);
-uploadCone(cone: any) {
-  this.gaialoading.set(true);
-  let gpt_key:string|null = localStorage.getItem('gaia-sora-key');;
-  let conf = this.md.open(InputDialog, {data: {key:gpt_key}, width:"400px"});
-  conf.afterClosed().subscribe(result=>{
-    console.log(result);
-    if(result){
-      localStorage.setItem('gaia-sora-key', result);
-      this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image='+result, cone, {
-        headers: { 'Content-Type': 'application/json' },
-      }).subscribe((data:any) => {
-        this.gs.addQuery(this.ar.snapshot.params['timeline'], data.pov, data, this.createCone(data.pov, cone.radius, cone.bearing, cone.fov));
-        this.gaialist.set(this.gs.getPastQueries(this.ar.snapshot.params['timeline']));
-        this.map.getSource('gaiaStorageFovs').setData(this.gs.getFovs(this.ar.snapshot.params['timeline']));
-        this.map.getSource('gaiaStoragePovs').setData(this.gs.getMarkers(this.ar.snapshot.params['timeline']));
-
-        this.showGaia(data);
-      })
-    } else {
-      this.http.post('https://api.gaia.fantasymaps.org/'+this.ar.snapshot.params['timeline']+'/context?describe=only&image=false', cone, {
-        headers: { 'Content-Type': 'application/json' },
-      }).subscribe((data:any) => {
-        this.gs.addQuery(this.ar.snapshot.params['timeline'], data.pov, data, this.createCone(data.pov, cone.radius, cone.bearing, cone.fov));
-        this.gaialist.set(this.gs.getPastQueries(this.ar.snapshot.params['timeline']));
-        this.map.getSource('gaiaStorageFovs').setData(this.gs.getFovs(this.ar.snapshot.params['timeline']));
-        this.map.getSource('gaiaStoragePovs').setData(this.gs.getMarkers(this.ar.snapshot.params['timeline']));
-        
-        this.showGaia(data);
+  private registerConeHandlers() {
+    this.map.on('click', (e: any) => {
+      if (!this.drawing) return;
+      if (!this.coneCenter) {
+        this.coneCenter = e.lngLat;
+        return;
+      }
+      this.queryGaia({
+        x: this.coneCenter.lng,
+        y: this.coneCenter.lat,
+        radius: this.coneRadius,
+        bearing: this.coneBearing,
+        fov: this.coneAngle,
       });
-    }
-  })
-}
-
-showGaia(data:any){
-  this.md.open(Response, {data: data});
-  this.gaialoading.set(false);
-}
-
-cleanup(map: any) {
-  this.drawing = false;
-  this.center = null;
-  map.getCanvas().style.cursor = '';
-this.upsertCone(map, {type:"FeatureCollection", features:[]})
-}
-
-registerConeHandlers(map: any) {
-  map.on('click', (e:any) => {
-    if (!this.drawing) return;
-
-    if (!this.center) {
-      this.center = e.lngLat;
-      return;
-    }
-
-    // finalize
-    this.uploadCone({
-      x: this.center.lng,
-      y: this.center.lat,
-      radius: this.radius,
-      bearing: this.bearing,
-      fov: this.angle
+      this.stopCone();
     });
 
-    this.cleanup(map);
-  });
+    this.map.on('mousemove', (e: any) => {
+      if (!this.drawing || !this.coneCenter) return;
+      this.coneBearing = bearingDegrees(this.coneCenter, e.lngLat);
+      this.coneRadius = distanceMeters(this.coneCenter, e.lngLat);
+      this.map.getSource(this.CONE_SOURCE_ID)?.setData(createCone(this.coneCenter, this.coneRadius, this.coneBearing, this.coneAngle));
+    });
+  }
 
-  map.on('mousemove', (e:any) => {
-    if (!this.drawing || !this.center) return;
+  private stopCone() {
+    this.drawing = false;
+    this.coneCenter = null;
+    this.map.getCanvas().style.cursor = '';
+    this.map.getSource(this.CONE_SOURCE_ID)?.setData({ type: 'FeatureCollection', features: [] });
+  }
 
-    this.bearing = this.getBearing(this.center, e.lngLat);
-    this.radius = this.getDistanceMeters(this.center, e.lngLat);
+  private queryGaia(cone: { x: number; y: number; radius: number; bearing: number; fov: number }) {
+    const world = this.world;
+    this.gaialoading.set(true);
+    this.http.post<any>(`https://api.gaia.fantasymaps.org/${world}/context?describe=only&image_description=true`, cone)
+      .pipe(finalize(() => this.gaialoading.set(false)))
+      .subscribe({
+        next: data => {
+          const q = this.gs.addQuery(world, data.pov, data, createCone(data.pov, cone.radius, cone.bearing, cone.fov));
+          this.refreshGaia();
+          this.showGaia(q, true);
+        },
+        error: err => {
+          console.error('[gaia] context request failed', err);
+          this._snackBar.open(`Gaia could not describe this place (${err?.status || 'network error'}).`, 'Close', { duration: 4000 });
+        },
+      });
+  }
 
-    const cone = this.createCone(this.center, this.radius, this.bearing, this.angle);
-    this.upsertCone(map, cone);
-  });
-}
+  /** Open a Gaia answer; `paintNow` renders the image, otherwise a stored one is loaded. */
+  showGaia(q: GaiaQuery, paintNow = false) {
+    const image = signal<string | null>(null);
+    const imageState = signal<ImageState>('none');
+    const imageError = signal<string | null>(null);
 
-drawWedge(){
-  this.drawing=true;
-  this.center=null;
-  this.map.getCanvas().style.cursor = 'crosshair';
-  
-  this.map.getLayer(this.LAYER_ID).bringToFront();
-}
+    const paint = async () => {
+      if (!this.openrouter.key() && !(await this.connectOpenRouter())) return;
+      imageState.set('loading');
+      imageError.set(null);
+      try {
+        const url = await this.openrouter.generateImage(q.properties.image_prompt || q.properties.description || '');
+        await this.gs.putImage(q.id, url);
+        image.set(url);
+        imageState.set('ready');
+      } catch (err: any) {
+        imageError.set(err?.message ?? String(err));
+        imageState.set('error');
+      }
+    };
+
+    const data: GaiaView = {
+      description: q.properties.description,
+      image_prompt: q.properties.image_prompt,
+      image, imageState, imageError, paint,
+    };
+    this.md.open(Response, { data, width: '720px', maxWidth: '95vw' });
+
+    if (paintNow) {
+      paint();
+    } else {
+      this.gs.getImage(q.id).then(url => {
+        if (url) {
+          image.set(url);
+          imageState.set('ready');
+        }
+      });
+    }
+  }
+
+  locateGaia(q: GaiaQuery) {
+    this.map.flyTo({ center: q.geometry.coordinates, zoom: Math.max(this.map.getZoom(), 10) });
+  }
+
+  deleteGaia(q: GaiaQuery) {
+    this.gs.deleteQuery(q.id);
+    this.refreshGaia();
+  }
+
+  private refreshGaia() {
+    const world = this.world;
+    this.gaialist.set(this.gs.getPastQueries(world));
+    this.map?.getSource('gaiaStorageFovs')?.setData(this.gs.getFovs(world));
+    this.map?.getSource('gaiaStoragePovs')?.setData(this.gs.getMarkers(world));
+  }
+
+  setImageModel(model: string) {
+    this.openrouter.setImageModel(model);
+  }
 
   hideAll() {
     this.showInfo = false;
-    this.showSearch = false;
-    this.showLegend = false;
-    this.showTools = false;
-    this.showShare = false;
   }
 
   p = null;
@@ -340,7 +290,10 @@ drawWedge(){
 
   ractive = signal("");
 
-  gaialist = signal<any[]>([]);
+  // ─── Live agent positions (geomqtt) ───
+  // Replaces the 5s polling loop when ofm_meta.geomqtt is configured.
+  private geomqttLayer: GeomqttLayer | null = null;
+  private agentsPollInterval: any = null;
 
   // ─── Annotations ───
   annotating = signal(false);                                    // point placement mode
@@ -371,7 +324,6 @@ drawWedge(){
     private ar: ActivatedRoute,
     private l: Location,
     private md: MatDialog,
-    private ohm: OfmService,
     private ofm: OfmService,
     private http: HttpClient,
     private _snackBar: MatSnackBar,
@@ -380,7 +332,8 @@ drawWedge(){
     private cdr: ChangeDetectorRef,
     private gs: GaiaStorage,
     private annot: AnnotationsStorage,
-    private viewsStore: ViewsStorage
+    private viewsStore: ViewsStorage,
+    readonly openrouter: OpenRouterService,
   ) {
     this.startstopicons.set('stop', 'play_arrow');
     this.startstopicons.set('play', 'stop');
@@ -389,8 +342,21 @@ drawWedge(){
     this.views.set(viewsStore.getAll(ar.snapshot.params['timeline']));
   }
 
+  /** Slug of the world on screen (the `:timeline` route param). */
+  get world(): string {
+    return this.ar.snapshot.params['timeline'];
+  }
+
   ngOnDestroy(): void {
     this.currentDeck = "";
+    if (this.geomqttLayer) {
+      this.geomqttLayer.dispose();
+      this.geomqttLayer = null;
+    }
+    if (this.agentsPollInterval) {
+      clearInterval(this.agentsPollInterval);
+      this.agentsPollInterval = null;
+    }
   }
 
   currentDeck="d1";
@@ -403,30 +369,22 @@ drawWedge(){
   ngAfterContentInit(): void {
     this.map = new maplibregl.Map({
       container: 'ohm_map',
-      style: 'https://static.fantasymaps.org/' + this.ar.snapshot.params['timeline'] + '/map.json', // stylesheet location
-      center: this.start.center, // starting position [lng, lat]
-      zoom: this.start.zoom, // starting zoom
+      style: 'https://static.fantasymaps.org/' + this.world + '/map.json',
+      center: this.start.center,
+      zoom: this.start.zoom,
       bearing: this.start.bearing,
       pitch: this.start.pitch,
-      maxZoom:25,
+      maxZoom: 25,
       projection: 'equirectangular',
       maxPitch: 85,
       minPitch: 0,
       attributionControl: false,
       preserveDrawingBuffer: true,
-      transformRequest: (url: string, resourceType: string) => {
-        let nurl = url;
-        if (isDevMode()) {
-          nurl = nurl.replace('https://tiles.fantasymaps.org/' + this.tl, this.ts + this.tl);
-          nurl = nurl.replace('https://a.tiles.fantasymaps.org/' + this.tl, this.ts + this.tl);
-          nurl = nurl.replace('https://b.tiles.fantasymaps.org/' + this.tl, this.ts + this.tl);
-          nurl = nurl.replace('https://c.tiles.fantasymaps.org/' + this.tl, this.ts + this.tl);
-        }
-        return {
-          url: nurl.replace('{atDate}', this.atDate.toString()).replace('%7BatDate%7D', this.atDate.toString()).replace('{deck}', this.currentDeck).replace('%7Bdeck%7D', this.currentDeck)
-        };
-      }
-
+      transformRequest: (url: string) => ({
+        url: url
+          .replace('{atDate}', this.atDate.toString()).replace('%7BatDate%7D', this.atDate.toString())
+          .replace('{deck}', this.currentDeck).replace('%7Bdeck%7D', this.currentDeck),
+      }),
     });
 
     // Expose for external tooling (the offline tile renderer waits on
@@ -434,169 +392,21 @@ drawWedge(){
     (window as any).__ofmMap = this.map;
 
     this.map.on('load', () => {
+      // The style *is* map.json, so its metadata is available here even if
+      // the separate getMap() request in ngOnInit hasn't answered yet.
+      if (!this.ofm_meta || !Object.keys(this.ofm_meta).length) {
+        this.ofm_meta = this.map.getStyle()?.metadata?.ofm ?? {};
+      }
       this.showRels();
-      this.map.on('zoomend', () => {
-        if (this.map.getZoom() >= 22 && this.ofm_meta.relatedLayers) {
-          const features = this.map.queryRenderedFeatures({
-            layers: this.ofm_meta?.relatedLayers
-          });
-          if (features.length == 1) {
-            const move_to = this.ar.snapshot.params['timeline'] + "-" + features[0].properties[this.ofm_meta.relatedField].toLowerCase();
-            this.warpTo(this.atDate, move_to);
-          }
-        } else if (this.map.getZoom() < 1 && this.ofm_meta.parentMap) {
-          this.warpTo(this.atDate, this.ofm_meta.parentMap, 20, this.ofm_meta.parentLocation);
-        }
-      })
-
+      this.registerWarpHandlers();
+      this.registerGaiaLayers();
+      this.registerClickLayers();
+      this.registerMeasureLayers();
     });
 
-
-    this.map.on('load', () => {
-      this.showOverlays();
-      //this.map.setTerrain({source:'dem', 'exaggeration': 1.2})
-      //this.map.addLauer({
-      //  'id': 'sky',
-      //  'type': 'sky',
-      //  'paint': {
-      //  'sky-type': 'atmosphere',
-      //  'sky-atmosphere-sun': [0.0, 0.0],
-      //  'sky-atmosphere-sun-intensity': 15
-      //  }});
-
-      this.registerConeHandlers(this.map);
-
-      
-    this.map.addSource(this.SOURCE_ID, {
-      type: 'geojson',
-      data:{type:"FeatureCollection", features:[]}
-    });
-
-    this.map.addLayer({
-      id: this.LAYER_ID,
-      type: 'fill',
-      source: this.SOURCE_ID,
-      paint: {
-        'fill-color': '#ff6a00',
-        'fill-opacity': 0.35
-      }
-    });
-
-    setInterval(()=>{
-      this.gs.getAgents(this.ar.snapshot.params['timeline']).subscribe(data=>{
-        this.map.getSource('gaiaAgentsPovs').setData(data);
-      })
-    }, 5*1000);
-
-
-      this.map.addSource('gaiaAgentsPovs', {
-        'type': 'geojson',
-        'data': {type:'FeatureCollection', features:[]}
-      });
-
-
-      this.map.addLayer({
-        id: 'gaia_layer_agents_povs',
-        type: 'circle',
-        source: 'gaiaAgentsPovs',
-        paint: {
-          'circle-radius': 4,
-          'circle-color': 'rgba(186, 42, 28, 1)'
-        },
-      });
-
-      this.map.addSource('gaiaStoragePovs', {
-        'type': 'geojson',
-        'data': this.gs.getMarkers(this.ar.snapshot.params['timeline'])
-      });
-
-      this.map.addSource('gaiaStorageFovs', {
-        'type': 'geojson',
-        'data': this.gs.getFovs(this.ar.snapshot.params['timeline'])
-      });
-
-
-      this.map.addLayer({
-        id: 'gaia_layer_povs',
-        type: 'circle',
-        source: 'gaiaStoragePovs',
-        paint: {
-          'circle-radius': 4,
-          'circle-color': 'rgba(231, 241, 28, 0.5)'
-        },
-      });
-      this.map.addLayer({
-        id: 'gaia_layer_fovs',
-        type: 'fill',
-        source: 'gaiaStorageFovs',
-        paint: {
-          'fill-color': '#fff200d9',
-          'fill-opacity': 0.35
-        }
-        
-      });
-
-      this.map.on('click', 'gaia_layer_povs', (e:any)=>{
-        const p = e.features[0].properties;
-        this.showGaia(p);
-      })
-
-
-      for (let layer of (this.ofm_meta?.clickLayers ?? [])) {
-        this.map.on('click', layer, (e:any) => {
-          this.hideAll();
-          this.p = e.features[0].properties;
-          this.showInfo = true;
-        });
-        this.map.on('mouseenter', layer, () => {
-          this.map.getCanvas().style.cursor = this.measuring ? 'crosshair' : 'pointer';
-        });
-
-        // Change it back to a pointer when it leaves.
-        this.map.on('mouseleave', layer, () => {
-          this.map.getCanvas().style.cursor = '';
-        });
-      }
-
-
-      this.map.addSource('geojson', {
-        'type': 'geojson',
-        'data': this.geojson
-      });
-
-
-      // Add styles to the map
-      this.map.addLayer({
-        id: 'measure-points',
-        type: 'circle',
-        source: 'geojson',
-        paint: {
-          'circle-radius': 4,
-          'circle-color': 'rgba(245,245,245,0.5)'
-        },
-        filter: ['in', '$type', 'Point']
-      });
-      this.map.addLayer({
-        id: 'measure-lines',
-        type: 'line',
-        source: 'geojson',
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round'
-        },
-        paint: {
-          'line-color': 'rgba(245,245,245,0.5)',
-          'line-width': 2.5,
-          'line-dasharray': [2, 2]
-        },
-        filter: ['in', '$type', 'LineString']
-      });
-
-    });
-
-    // Annotations get their own load handler so a throw in the gaia/clickLayers
-    // setup above can never leave them un-wired (which would silently disable
-    // both the markers and the place-on-click handler).
+    // Annotations get their own load handler so a throw in the setup above can
+    // never leave them un-wired (which would silently disable both the markers
+    // and the place-on-click handler).
     this.map.on('load', () => {
       try {
         this.registerAnnotationLayers();
@@ -605,30 +415,145 @@ drawWedge(){
       }
     });
 
+    this.map.on('moveend', () => this.changeUrl());
+  }
 
+  /** Zoom far in on a related feature → child world; zoom far out → parent world. */
+  private registerWarpHandlers() {
+    this.map.on('zoomend', () => {
+      if (this.map.getZoom() >= 22 && this.ofm_meta.relatedLayers) {
+        const features = this.map.queryRenderedFeatures({ layers: this.ofm_meta.relatedLayers });
+        if (features.length == 1) {
+          const move_to = this.world + '-' + features[0].properties[this.ofm_meta.relatedField].toLowerCase();
+          this.warpTo(this.atDate, move_to);
+        }
+      } else if (this.map.getZoom() < 1 && this.ofm_meta.parentMap) {
+        this.warpTo(this.atDate, this.ofm_meta.parentMap, 20, this.ofm_meta.parentLocation);
+      }
+    });
+  }
 
+  private registerGaiaLayers() {
+    const empty = { type: 'FeatureCollection', features: [] };
 
-    this.map.on('moveend', () => {
-      this.changeUrl();
+    // In-progress view cone
+    this.map.addSource(this.CONE_SOURCE_ID, { type: 'geojson', data: empty });
+    this.map.addLayer({
+      id: this.CONE_LAYER_ID,
+      type: 'fill',
+      source: this.CONE_SOURCE_ID,
+      paint: { 'fill-color': '#ff6a00', 'fill-opacity': 0.35 },
+    });
+    this.registerConeHandlers();
+
+    // Live agents (hidden until toggled on in the GaiaWM panel)
+    this.map.addSource('gaiaAgentsPovs', { type: 'geojson', data: empty });
+    this.map.addLayer({
+      id: 'gaia_layer_agents_povs',
+      type: 'circle',
+      source: 'gaiaAgentsPovs',
+      layout: { visibility: 'none' },
+      paint: { 'circle-radius': 4, 'circle-color': 'rgba(186, 42, 28, 1)' },
     });
 
-  }
-showGaiaLayers = false;
-toggleGaiaLayers(){
-  this.showGaiaLayers = !this.showGaiaLayers;
-  this.map.setLayoutProperty('gaia_layer_povs', 'visibility', this.showGaiaLayers?'visible':'none')
-  this.map.setLayoutProperty('gaia_layer_fovs', 'visibility', this.showGaiaLayers?'visible':'none')
-}
-showGaiaAgentsLayer = false;
-toggleGaiaAgentsLayer(){
-  this.showGaiaAgentsLayer = !this.showGaiaAgentsLayer;
-  this.map.setLayoutProperty('gaia_layer_agents_povs', 'visibility', this.showGaiaAgentsLayer?'visible':'none')
+    // Agent positions: live via geomqtt if configured, polling otherwise.
+    // ofm_meta.geomqtt = { url: "wss://geomqtt.example/mqtt", set?: "agents-toril", zoom?: 6 }
+    const geomqttCfg = this.ofm_meta?.geomqtt;
+    if (geomqttCfg?.url) {
+      this.geomqttLayer = new GeomqttLayer(this.map, {
+        url: geomqttCfg.url,
+        set: geomqttCfg.set ?? `agents-${this.world}`,
+        zoom: geomqttCfg.zoom ?? 6,
+        sourceId: 'gaiaAgentsPovs',
+      });
+      this.geomqttLayer.start();
+    } else {
+      this.agentsPollInterval = setInterval(() => {
+        this.gs.getAgents(this.world).subscribe((data: any) => {
+          this.map.getSource('gaiaAgentsPovs')?.setData(data);
+        });
+      }, 5 * 1000);
+    }
 
-}
+    // Past "eye on the world" looks (hidden until toggled on)
+    this.map.addSource('gaiaStoragePovs', { type: 'geojson', data: this.gs.getMarkers(this.world) });
+    this.map.addSource('gaiaStorageFovs', { type: 'geojson', data: this.gs.getFovs(this.world) });
+    this.map.addLayer({
+      id: 'gaia_layer_fovs',
+      type: 'fill',
+      source: 'gaiaStorageFovs',
+      layout: { visibility: 'none' },
+      paint: { 'fill-color': '#fff200d9', 'fill-opacity': 0.35 },
+    });
+    this.map.addLayer({
+      id: 'gaia_layer_povs',
+      type: 'circle',
+      source: 'gaiaStoragePovs',
+      layout: { visibility: 'none' },
+      paint: { 'circle-radius': 4, 'circle-color': 'rgba(231, 241, 28, 0.5)' },
+    });
+    this.map.on('click', 'gaia_layer_povs', (e: any) => {
+      const q = this.gaialist().find(x => x.id === e.features?.[0]?.properties?.id);
+      if (q) this.showGaia(q);
+    });
+  }
+
+  /** ofm_meta.clickLayers: remember the clicked feature's properties. */
+  private registerClickLayers() {
+    for (const layer of this.ofm_meta?.clickLayers ?? []) {
+      this.map.on('click', layer, (e: any) => {
+        this.hideAll();
+        this.p = e.features[0].properties;
+        this.showInfo = true;
+        this.cdr.markForCheck();
+      });
+      this.map.on('mouseenter', layer, () => {
+        this.map.getCanvas().style.cursor = this.measuring ? 'crosshair' : 'pointer';
+      });
+      this.map.on('mouseleave', layer, () => {
+        this.map.getCanvas().style.cursor = '';
+      });
+    }
+  }
+
+  private registerMeasureLayers() {
+    this.map.addSource('geojson', { type: 'geojson', data: this.geojson });
+    this.map.addLayer({
+      id: 'measure-points',
+      type: 'circle',
+      source: 'geojson',
+      paint: { 'circle-radius': 4, 'circle-color': 'rgba(245,245,245,0.5)' },
+      filter: ['in', '$type', 'Point'],
+    });
+    this.map.addLayer({
+      id: 'measure-lines',
+      type: 'line',
+      source: 'geojson',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': 'rgba(245,245,245,0.5)', 'line-width': 2.5, 'line-dasharray': [2, 2] },
+      filter: ['in', '$type', 'LineString'],
+    });
+    // Registered once; startDistance() only flips `measuring`.
+    this.map.on('click', (e: any) => this.onMeasureClick(e));
+  }
+
+  showGaiaLayers = false;
+  toggleGaiaLayers() {
+    this.showGaiaLayers = !this.showGaiaLayers;
+    const v = this.showGaiaLayers ? 'visible' : 'none';
+    this.map.setLayoutProperty('gaia_layer_povs', 'visibility', v);
+    this.map.setLayoutProperty('gaia_layer_fovs', 'visibility', v);
+  }
+
+  showGaiaAgentsLayer = false;
+  toggleGaiaAgentsLayer() {
+    this.showGaiaAgentsLayer = !this.showGaiaAgentsLayer;
+    this.map.setLayoutProperty('gaia_layer_agents_povs', 'visibility', this.showGaiaAgentsLayer ? 'visible' : 'none');
+  }
 
   // ─── Annotations ──────────────────────────────────────────────────────
   registerAnnotationLayers() {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
 
     // Persisted features — only LineString and Polygon render as map layers.
     // Points are rendered as DOM markers so we can use any web font glyph.
@@ -769,7 +694,7 @@ toggleGaiaAgentsLayer(){
       marker.on('dragend', () => {
         el.classList.remove('is-dragging');
         const ll = marker.getLngLat();
-        const world = this.ar.snapshot.params['timeline'];
+        const world = this.world;
         this.annot.moveFeature(world, a.id, { type: 'Point', coordinates: [ll.lng, ll.lat] });
         // Refresh the signal so the sidebar reflects the new coords.
         this.annotations.set(this.annot.getAll(world));
@@ -908,7 +833,7 @@ toggleGaiaAgentsLayer(){
     }
     ref.afterClosed().subscribe((res: any) => {
       if (res && !res.delete) {
-        const world = this.ar.snapshot.params['timeline'];
+        const world = this.world;
         this.annot.addFeature(world, geometry, res.title, res.body, res.color, res.icon);
         this.refreshAnnotations();
       }
@@ -960,14 +885,14 @@ toggleGaiaAgentsLayer(){
     });
     ref.afterClosed().subscribe((res: any) => {
       if (!res || res.delete) return;
-      const world = this.ar.snapshot.params['timeline'];
+      const world = this.world;
       this.annot.add(world, lngLat, res.title, res.body, res.color, res.icon);
       this.refreshAnnotations();
     });
   }
 
   editAnnotation(id: string) {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     const a = this.annot.getAll(world).find(x => x.id === id);
     if (!a) return;
     const seed = this.geometrySeedCoords(a.geometry);
@@ -1002,7 +927,7 @@ toggleGaiaAgentsLayer(){
   }
 
   deleteAnnotation(id: string) {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     this.annot.delete(world, id);
     this.refreshAnnotations();
   }
@@ -1030,7 +955,7 @@ toggleGaiaAgentsLayer(){
         this._snackBar.open('Could not parse file as JSON.', 'Close', { duration: 2000 });
         return;
       }
-      const world = this.ar.snapshot.params['timeline'];
+      const world = this.world;
       const { added, skipped } = this.annot.importFeatureCollection(world, fc);
       if (added === 0 && skipped === 0) {
         this._snackBar.open('No FeatureCollection of points found.', 'Close', { duration: 2500 });
@@ -1049,7 +974,7 @@ toggleGaiaAgentsLayer(){
       return;
     }
 
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     const annotations = this.annot.getFeatureCollection(world);
     const overlays = this.overlays();
     const center = this.map.getCenter();
@@ -1167,7 +1092,7 @@ toggleGaiaAgentsLayer(){
   }
 
   exportAnnotations() {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     const fc = this.annot.getFeatureCollection(world);
     if (!fc.features.length) {
       this._snackBar.open('No annotations to export.', 'Close', { duration: 1500 });
@@ -1185,7 +1110,7 @@ toggleGaiaAgentsLayer(){
   }
 
   private refreshAnnotations() {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     this.annotations.set(this.annot.getAll(world));
     const src = this.map?.getSource(this.ANNOT_SOURCE_ID);
     if (src) src.setData(this.annot.getFeatureCollection(world));
@@ -1217,7 +1142,7 @@ toggleGaiaAgentsLayer(){
   // ─── Saved views ─────────────────────────────────────────────────────
   saveCurrentView() {
     if (!this.map) return;
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     const c = this.map.getCenter();
     this.viewsStore.add(world, {
       label: this.viewLabelDraft,
@@ -1246,7 +1171,7 @@ toggleGaiaAgentsLayer(){
   }
 
   deleteView(id: string) {
-    const world = this.ar.snapshot.params['timeline'];
+    const world = this.world;
     this.viewsStore.delete(world, id);
     this.views.set(this.viewsStore.getAll(world));
     this.cdr.markForCheck();
@@ -1393,14 +1318,18 @@ toggleGaiaAgentsLayer(){
     this.rels = this.ar.snapshot.params['rels'];
     this.layers = {};
 
-    this.ofm.getMap(this.ar.snapshot.params['timeline']).subscribe((data: any) => {
+    this.ofm.getMap(this.world).subscribe((data: any) => {
       this.title = data.name;
-      this.ofm_meta = data.metadata.ofm;
-
-      for (let l of this.ofm_meta.togglable) {
+      this.ofm_meta = data.metadata?.ofm ?? {};
+      for (const l of this.ofm_meta.togglable ?? []) {
         this.layers[l.name] = true;
       }
       this.cdr.markForCheck();
+    });
+
+    // A world may ship a WORLD.md guide; the toolbar only offers it when present.
+    this.ofm.getWorldGuide(this.world).subscribe(md => {
+      this.worldGuide.set(md ? renderMarkdown(md) : null);
     });
 
     const container = document.getElementById('visualization');
@@ -1436,54 +1365,36 @@ toggleGaiaAgentsLayer(){
       this.changeUrl(this.atDate.toString());
     });
 
-    this.timeline.on('rangechanged', (properties: any) => {});
   }
 
-  changeUrl(ev:(string|null) = null): void {
+  changeUrl(ev: (string | null) = null): void {
     const c = this.map.getCenter();
     const p = this.map.getPitch();
     const b = this.map.getBearing();
     this.l.go(`/${this.tl}/${this.atDate}/${this.map.getZoom()}/${c.lat}/${c.lng}/${p}/${b}` + (this.rels ? '/' + this.rels : ''));
     if (ev) {
-      for (let tm of this.ofm_meta.timed) {
-        const s = this.map.getSource(tm.source);
-        console.log(s);
-        if (s.type === 'geojson') {
-          this.http.get(s._options.data.replace('{atDate}', this.atDate)).subscribe(data => {
-            try {
-              s.setData(data);
-            } catch (ex) {
-              console.log(ex);
-            }
-          })
-        }
+      // ofm_meta.timed entries are { source, field_from, field_to }; bare names are accepted too.
+      for (const tm of this.ofm_meta.timed ?? []) {
+        this.refetchGeojson(typeof tm === 'string' ? tm : tm.source, '{atDate}', String(this.atDate));
       }
-
-      if(this.ofm_meta.type === "starbase"){
-        for (let tm of [{"source":"base"}, {"source": "walls"}, {"source": "areas"}]) {
-
-          const s = this.map.getSource(tm.source);
-          console.log(s);
-          
-          if (s.type === 'geojson') {
-            this.http.get(s._options.data.replace('{deck}', this.currentDeck)).subscribe(data => {
-              try {
-                s.setData(data);
-              } catch (ex) {
-                console.log(ex);
-              }
-            })
-          }        
-          this.map.style.getSource('base').load();
+      if (this.ofm_meta.type === 'starbase') {
+        for (const source of ['base', 'walls', 'areas']) {
+          this.refetchGeojson(source, '{deck}', this.currentDeck);
         }
       }
     }
-    this.events = this.ohm.getEvents(this.tl, this.atDate, 10);
+    this.events = this.ofm.getEvents(this.tl, this.atDate, 10);
   }
 
-  changeStyle(style: string): void {
-    this.style = style;
-    this.map.setStyle(style);
+  /** Re-download a GeoJSON source whose URL template contains `token`. */
+  private refetchGeojson(sourceId: string, token: string, value: string) {
+    const src = this.map.getSource(sourceId);
+    const template = src?._options?.data;
+    if (src?.type !== 'geojson' || typeof template !== 'string') return;
+    this.http.get(template.replace(token, value)).subscribe({
+      next: data => src.setData(data),
+      error: err => console.warn(`[map] could not refresh ${sourceId}`, err),
+    });
   }
 
   toDateFloat(date: Date): number {
@@ -1521,7 +1432,10 @@ toggleGaiaAgentsLayer(){
       data: this.atDate
     });
     ref.afterClosed().subscribe(date => {
+      if (date === undefined || date === null) return;
       this.atDate = date;
+      this.timeline.setCustomTime(this.toFloatDate(this.atDate), 'atTime');
+      this.changeUrl(String(this.atDate));
     });
   }
 
@@ -1533,152 +1447,20 @@ toggleGaiaAgentsLayer(){
     }
   }
 
-  info() {}
-
-  showOverlays() {
-    console.log('run');
-    /*this.map.addLayer({
-      id: 'ships',
-      type: 'circle',
-      source: 'ohm-ephemeral',
-      'source-layer': 'movement',
-      filter: [
-        'all',
-        ['==', 'type', 'ship']
-      ],
-      paint: {
-        'circle-opacity': 0.6,
-        'circle-color': 'rgb(53, 175, 109)',
-        'circle-radius': 2
-      }
-    });
-    this.map.addLayer({
-      id: 'planes',
-      type: 'circle',
-      source: 'ohm-ephemeral',
-      'source-layer': 'movement',
-      filter: [
-        'all',
-        ['==', 'type', 'aircraft']
-      ],
-      paint: {
-        'circle-opacity': 0.6,
-        'circle-color': '#dd3333',
-        'circle-radius': 2
-      }
-    });
-    this.map.addLayer({
-      id: 'human',
-      type: 'circle',
-      source: 'ohm-ephemeral',
-      'source-layer': 'movement',
-      filter: [
-        'all',
-        ['==', 'type', 'human']
-      ],
-      paint: {
-        'circle-opacity': 0.6,
-        'circle-color': 'rgb(53, 53, 200)',
-        'circle-radius': 2
-      }
-    });
-    /*
-    this.map.addLayer({
-      id: 'ships-labels',
-      type: 'symbol',
-      source: 'ohm-ephemeral',
-      'source-layer': 'movement',
-      filter: [
-        'any',
-        ['==', 'type', 'ship'],
-        ['==', 'type', 'aircraft'],
-      ],
-      layout: {
-        'text-field': {
-          stops: [
-            [1, ''],
-            [2, '{service} {name}'],
-            [5, '{service} {name} - {ship:nationality}'],
-            [13, '{service} {name} - {ship:nationality}']
-          ]
-        },
-        'text-size': {
-          stops: [[6, 10], [10, 13]]
-        },
-        'text-allow-overlap': true,
-        'text-ignore-placement': false,
-        'text-offset': [0, -1],
-        'text-max-width': 12
-      }
-    });
-    */
-    /*
-    this.map.addLayer({
-      id: 'human-labels',
-      type: 'symbol',
-      source: 'ohm-ephemeral',
-      'source-layer': 'movement',
-      filter: [
-        'all',
-        ['==', 'type', 'human']
-      ],
-      layout: {
-        'text-field': '{name}',
-        'text-font': ['Open Sans Regular'],
-        'text-size': 10,
-        'text-allow-overlap': false,
-        'text-ignore-placement': false,
-        'text-offset': [0, -1],
-        'text-max-width': 12
-      }
-    });
-    */
-    /*this.map.addLayer({
-      id: 'events',
-      type: 'circle',
-      source: 'ohm-ephemeral',
-      'source-layer': 'event',
-      paint: {
-        'circle-opacity': 1,
-        'circle-color': '#dd3333',
-        'circle-radius': 1.5
-      }
-    });
-    /*
-    this.map.addLayer({
-      id: 'events-labels',
-      type: 'symbol',
-      source: 'ohm-ephemeral',
-      'source-layer': 'event',
-      layout: {
-        'text-field': '{name}',
-        'text-font': ['Open Sans Regular'],
-        'text-size': {
-          stops: [[6, 10], [10, 13]]
-        },
-        'text-allow-overlap': true,
-        'text-ignore-placement': false,
-        'text-offset': [0, -1],
-        'text-max-width': 12
-      }
-    });
-    */
-  }
-
   copy_url() {
     try {
       this.capture.getImage(this.screen, true).subscribe(img => {
-        this.hideAll();
-        this.ohm.su(window.location.href, img).subscribe(data => {
+        this.ofm.su(window.location.href, img).subscribe(data => {
           this.clipboard.copy(data);
           this.share_link = data;
-          this.showShare = true;
+          this.cdr.markForCheck();
           this._snackBar.open('Address ready to share', 'Close', {
             duration: 1000
           });
         });
       })
     } catch (ex) {
+      this.share_link = window.location.href;
       this.clipboard.copy(window.location.href);
       this._snackBar.open('Address ready to share', 'Close', {
         duration: 1000
@@ -1721,8 +1503,6 @@ toggleGaiaAgentsLayer(){
 
       const rcs = zip(rels, cols);
 
-
-      console.log(rcs);
 
       this.map.addSource('ohm-movement-rels', {
         type: 'geojson',
@@ -1785,92 +1565,56 @@ toggleGaiaAgentsLayer(){
 
   startDistance() {
     this.measuring = !this.measuring;
-    
+  }
 
-  //  this.map.on('mousemove', (e) => {
-  //    var features = this.map.queryRenderedFeatures(e.point, {
-  //      layers: ['measure-points']
-  //    });
-  //    // UI indicator for clicking/hovering a point on the map
-  //    this.map.getCanvas().style.cursor = features.length ?
-  //      'pointer' :
-  //      'crosshair';
-  //  });
+  /** Measuring tool: click adds a vertex, clicking a vertex removes it. */
+  private onMeasureClick(e: any) {
+    if (!this.measuring) return;
+    const hit = this.map.queryRenderedFeatures(e.point, { layers: ['measure-points'] });
 
-    this.map.on('click', (e:any)=>{
-      if(this.measuring){
-      var features = this.map.queryRenderedFeatures(e.point, {
-        layers: ['measure-points']
+    // Drop the previous line; it's rebuilt from the points below.
+    if (this.geojson.features.length > 1) this.geojson.features.pop();
+
+    if (hit.length) {
+      const id = hit[0].properties.id;
+      this.geojson.features = this.geojson.features.filter((pt: any) => pt.properties.id !== id);
+    } else {
+      this.geojson.features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [e.lngLat.lng, e.lngLat.lat] },
+        properties: { id: String(Date.now()) },
       });
-
-      // Remove the linestring from the group
-      // So we can redraw it based on the points collection
-      if (this.geojson.features.length > 1) this.geojson.features.pop();
-
-      // If a feature was clicked, remove it from the map
-      if (features.length) {
-        var id = features[0].properties.id;
-        this.geojson.features = this.geojson.features.filter((point: any) => {
-          return point.properties.id !== id;
-        });
-      } else {
-        var point = {
-          'type': 'Feature',
-          'geometry': {
-            'type': 'Point',
-            'coordinates': [e.lngLat.lng, e.lngLat.lat]
-          },
-          'properties': {
-            'id': String(new Date().getTime())
-          }
-        };
-
-        this.geojson.features.push(point);
-      }
-
-      if (this.geojson.features.length > 1) {
-        this.linestring.geometry.coordinates = this.geojson.features.map(
-          function (point) {
-            return point.geometry.coordinates;
-          }
-        );
-
-        this.geojson.features.push(this.linestring);
-
-        const ll = turf.length(this.linestring)*this.ofm_meta.distance_multiplier;
-        // Populate the distanceContainer with total distance
-        const value = '' +
-          (ll).toFixed(1) + ' ' +
-          this.ofm_meta.distance_unit;
-        this.measured = value;
-        this.times = [];
-        const units: Map<string,number> = new Map<string, number>();
-        units.set("s",60).set("min", 60).set("h", 24).set("d", 30).set("mo", 12).set("y", 1);
-        const unitNames = Array.from(units.keys());
-        for(let t of this.ofm_meta.speeds){
-          let ms = ll*9.461e+15/(299792458*Math.pow(t.multiplier,10/3));
-          let cuu = unitNames[0];
-          for (let i = 0; i < unitNames.length - 1; i++) {
-            const toNext = units.get(unitNames[i])!;
-            const scaled = ms / toNext;
-            if (scaled >= 1) {
-              ms = scaled;
-              cuu = unitNames[i + 1];
-            } else {
-              break;
-            }
-          }
-          this.times.push({
-            v: t.multiplier == 1?ll.toFixed(2):(ms).toFixed(2),
-            u: cuu,
-            l: t.label,
-          })
-        }
-      }
-
-      this.map.getSource('geojson').setData(this.geojson);
     }
-    });
+
+    if (this.geojson.features.length > 1) {
+      this.linestring.geometry.coordinates = this.geojson.features.map((pt: any) => pt.geometry.coordinates);
+      this.geojson.features.push(this.linestring);
+
+      const ll = turf.length(this.linestring) * (this.ofm_meta.distance_multiplier ?? 1);
+      this.measured = `${ll.toFixed(1)} ${this.ofm_meta.distance_unit ?? 'km'}`;
+      this.times = [];
+      const units = new Map<string, number>([['s', 60], ['min', 60], ['h', 24], ['d', 30], ['mo', 12], ['y', 1]]);
+      const unitNames = Array.from(units.keys());
+      for (const t of this.ofm_meta.speeds ?? []) {
+        let ms = ll * 9.461e+15 / (299792458 * Math.pow(t.multiplier, 10 / 3));
+        let cuu = unitNames[0];
+        for (let i = 0; i < unitNames.length - 1; i++) {
+          const scaled = ms / units.get(unitNames[i])!;
+          if (scaled < 1) break;
+          ms = scaled;
+          cuu = unitNames[i + 1];
+        }
+        this.times.push({ v: t.multiplier == 1 ? ll.toFixed(2) : ms.toFixed(2), u: cuu, l: t.label });
+      }
+    }
+
+    this.map.getSource('geojson').setData(this.geojson);
   }
 }
 
+/** Render WORLD.md; falls back to preformatted text if the marked CDN script failed. */
+function renderMarkdown(md: string): string {
+  if (typeof marked !== 'undefined') return marked.parse(md);
+  const esc = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<pre>${esc}</pre>`;
+}
